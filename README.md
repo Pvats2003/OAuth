@@ -105,7 +105,7 @@ With `RESEARCH_PROVIDER=groq` (or just `GROQ_API_KEY` set) the model does no bro
 the provider's own pages are ranked first, and Tavily reads 8 of them, keeping only the passages about OAuth review.
 One Groq call writes the guide from those passages (a second only if the JSON needs a repair). Groq's free tier allows
 8,000 tokens a minute and counts each request in full, so this path uses a compact prompt (no worked example) and
-about 9,000 characters of page text. Rate limits get the same wait-and-retry as Gemini; a request that is bigger
+about 8,000 characters of page text. Rate limits get the same wait-and-retry as Gemini; a request that is bigger
 than the per-minute limit fails straight away, because waiting can't help.
 
 ## Evidence: what I tested, corrected and couldn't verify

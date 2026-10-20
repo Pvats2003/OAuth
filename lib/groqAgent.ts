@@ -17,9 +17,9 @@ const REASONING = (process.env.GROQ_REASONING_EFFORT || "low") as "low" | "mediu
 const MAX_SEARCHES = 6;
 const MAX_PAGES = 8;
 // Groq's free tier allows 8,000 tokens a minute, and one request counts in full. Keep the
-// prompt small (compact system prompt + about 2,250 tokens of page passages, ~3,800 in all) and
+// prompt small (compact system prompt + about 2,000 tokens of page passages, ~3,700 in all) and
 // leave room for a 4,000-token answer.
-const PAGE_CHARS_TOTAL = Number(process.env.GROQ_PAGE_CHARS || 9000);
+const PAGE_CHARS_TOTAL = Number(process.env.GROQ_PAGE_CHARS || 8000);
 const MAX_COMPLETION_TOKENS = Number(process.env.GROQ_MAX_TOKENS || 4000);
 
 type SearchHit = { url: string; title: string; score: number };
@@ -201,7 +201,12 @@ export async function* runGroqAgent(input: string, deps: GroqDeps = realDeps()):
     stage: urls.some((u) => CONSOLE_URL.test(u)) ? "console" : "docs",
     detail: `Reading ${urls.length} pages`,
   };
-  const read = await deps.extract(urls, `${input} OAuth app registration, review, verification, scopes and limits`);
+  // The question steers which passages Tavily keeps: ask who can install or authorize the app and whether a
+  // listing or review is required or optional, not only about reviews, so the "optional" sentences come through.
+  const read = await deps.extract(
+    urls,
+    `${input} OAuth: who can install or authorize the app, whether a marketplace listing or review is required or optional, scopes and limits`,
+  );
   for (const p of read.ok) yield { type: "page", url: p.url, ok: true };
   for (const f of read.failed) yield { type: "page", url: `${f.url} (${f.error})`, ok: false };
   if (read.ok.length === 0) {

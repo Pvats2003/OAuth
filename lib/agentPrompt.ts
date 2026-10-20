@@ -42,8 +42,8 @@ const LABELS_OWNERS_TIERS = `Evidence labels (every claim gets one)
 - "uncertain": inferred, conflicting, or not confirmed in what you read.
 - Never use "tested". Only a human adds that after a real setup attempt. Leave evidence_log.tested empty.
 - Every item's source_ids must point to ids in "sources". If an item has no source, give it an empty source_ids list and label it "uncertain".
-- If official sources don't publish a timeline, say "Not published" in the basis and label any estimate you give.
-- When sources contradict each other or older docs differ from current ones, record it in evidence_log.corrected (what changed and what the guide uses) or evidence_log.unverified (what you couldn't confirm).
+- If official sources don't publish a timeline, say "Not published" in the basis. Any number you estimate yourself is "uncertain", never "sourced".
+- When sources contradict each other or older docs differ from current ones, record it in evidence_log.corrected (what changed and what the guide uses) or evidence_log.unverified (what you couldn't confirm). Your own estimates don't belong in corrected.
 
 Owners
 - "agent": research, drafting, classification, generating form values.
@@ -63,8 +63,13 @@ const TIER_TEST = `Choosing the tier (decide this before writing the rest)
 - If yes, the tier is self_serve or self_serve_with_review, even when the provider also offers a reviewed directory,
   marketplace or gallery listing. An optional listing review means self_serve_with_review, and it does not count
   toward time_to_production.
+- Being eligible for a listing is not the same as needing one. Words like "eligible", "can be listed", "optional",
+  or a review that applies "before being listed" describe an optional listing. Settings that only make an app
+  listable (e.g. a public or "any workspace" install scope) don't make the listing required.
 - Use review_required or partner_gated only when a review or approval blocks other users from authorizing the app
-  (or from getting the scopes it needs). Say which page states that in key_decision or a nuance.
+  (or from getting the scopes it needs), and you can quote the sentence from the pages that says so. Put that quote
+  in key_decision.why. If no page says it, the tier is self_serve or self_serve_with_review, and time_to_production
+  is the time to serve users without the listing.
 - Ignore reviews and approvals for unrelated programs (template galleries, partner or reseller programs, security or
   bug-bounty programs, certifications) unless the page ties them to OAuth or API access.
 `;
