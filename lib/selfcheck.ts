@@ -11,7 +11,7 @@ export type PageText = { url: string; text: string };
  * - "tested" is reserved for humans -> "uncertain", and evidence_log.tested is emptied
  * - a "sourced" time estimate whose own text says the timeline isn't published -> "uncertain"
  *   (a number the docs don't give is an estimate; "Not published" on its own stays sourced)
- * - a verdict timeline stays "sourced" only if a read official page states that duration
+ * - a verdict timeline stays "sourced" only if a read official page states that duration (needs page text)
  * - a marketplace/directory/listing claim must cite a page about the listing, else "uncertain"
  * - tier self_serve with a listing review described in a step or nuance -> self_serve_with_review
  * - source ids written into text ("[g1]", "(sources: n2, n3)") are removed; citations live in source_ids
@@ -133,7 +133,9 @@ export function selfCheck(
 
   // Text of the official pages that were actually read.
   const officialUrls = new Set(g.sources.filter((x) => x.type === "official").map((x) => norm(x.url)));
-  const officialTexts = (opts.pages ?? []).filter((p) => officialUrls.has(norm(p.url))).map((p) => p.text);
+  // Without page text (e.g. checking a hand-written seed) the duration can't be checked, so the rule is skipped.
+  // The app always passes the pages it read, so generated guides are always checked.
+  const officialTexts = opts.pages ? opts.pages.filter((p) => officialUrls.has(norm(p.url))).map((p) => p.text) : null;
 
   for (const [label, t] of [
     ["Time to first connection", g.verdict.time_to_first_connection],
@@ -143,7 +145,7 @@ export function selfCheck(
     if (t.evidence === "sourced" && isUnpublishedEstimate(t.estimate, t.basis)) {
       t.evidence = "uncertain";
       downgrades.push({ where: "Verdict", text: `${label}: ${t.estimate}`, from: "sourced", reason: "estimate for an unpublished timeline" });
-    } else if (t.evidence === "sourced" && !durationStated(t.estimate, officialTexts)) {
+    } else if (t.evidence === "sourced" && officialTexts && !durationStated(t.estimate, officialTexts)) {
       t.evidence = "uncertain";
       downgrades.push({ where: "Verdict", text: `${label}: ${t.estimate}`, from: "sourced", reason: "no official page read states this duration" });
     }

@@ -32,6 +32,7 @@
     {
       "name": "Register",
       "steps": [
+        { "title": "Classify your scopes", "detail": "List the Gmail scopes your features need, mark each non-sensitive, sensitive or restricted, and suggest narrower ones (for example gmail.send instead of a read scope).", "owner": "agent", "est_time": "15 min", "evidence": "sourced", "source_ids": ["g1", "g2"] },
         { "title": "Create a dedicated Cloud project", "detail": "Verification and scopes are project-wide, so don't share a project with unrelated apps.", "owner": "you", "est_time": "5 min", "evidence": "uncertain", "source_ids": ["g9"] },
         { "title": "Enable the Gmail API and configure the consent screen", "detail": "The consent screen now lives under 'Google Auth Platform' in the console. Set User type External, Publishing status Testing.", "owner": "you", "est_time": "15 min", "evidence": "uncertain", "source_ids": ["g9", "g3"] },
         { "title": "Create a Web application OAuth client", "detail": "Add your redirect URIs and store the client secret securely.", "owner": "you", "est_time": "5 min", "evidence": "community", "source_ids": ["g9"] }
@@ -46,6 +47,7 @@
     {
       "name": "Go to production",
       "steps": [
+        { "title": "Draft scope justifications and privacy-policy text", "detail": "Write a justification for each scope, the privacy-policy section about Google user data, and the demo video script for the verification submission.", "owner": "agent", "est_time": "1–2 hours", "evidence": "sourced", "source_ids": ["g2", "g4"] },
         { "title": "Publish the app and submit for verification", "detail": "Click Publish app, then use the Verification Center. Declare every scope with justification and a demo video.", "owner": "you", "est_time": "2–4 hours of prep", "evidence": "sourced", "source_ids": ["g2", "g3"] },
         { "title": "Brand verification", "detail": "Google checks logo, display name, URLs and domain ownership.", "owner": "provider", "est_time": "2–3 days", "evidence": "sourced", "source_ids": ["g4"] },
         { "title": "Sensitive/restricted scope review", "detail": "Google checks use case, limited use and minimum scopes.", "owner": "provider", "est_time": "3–10 business days (sensitive); several weeks (restricted)", "evidence": "sourced", "source_ids": ["g2", "g4", "g1"] },

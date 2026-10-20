@@ -52,6 +52,7 @@
       "name": "Go to production",
       "steps": [
         { "title": "Activate public distribution", "detail": "Manage Distribution → Share Your App with Other Workspaces → Activate Public Distribution. This makes the app installable by other workspaces without being listed.", "owner": "you", "est_time": "10 min", "evidence": "sourced", "source_ids": ["sl2"] },
+        { "title": "Draft Marketplace listing copy and a pre-submission checklist", "detail": "Write the Marketplace listing text and check the app against the Marketplace review guide before you submit.", "owner": "agent", "est_time": "1 hour", "evidence": "sourced", "source_ids": ["sl3", "sl6"] },
         { "title": "Submit to the Slack Marketplace (for commercial scale)", "detail": "Public distribution is a prerequisite. Review has a preliminary stage then a functional review. Submit only a bug-free, complete app.", "owner": "you", "est_time": "Varies, see submission page", "evidence": "sourced", "source_ids": ["sl6", "sl3"] },
         { "title": "Wait for Marketplace review", "detail": "Turnaround varies with volume.", "owner": "provider", "est_time": "Not published", "evidence": "uncertain", "source_ids": ["sl3"] }
       ]

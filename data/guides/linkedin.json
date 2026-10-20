@@ -32,12 +32,14 @@
       "name": "Register",
       "steps": [
         { "title": "Create the app and pick its LinkedIn Page", "detail": "The Page's company becomes the app's publisher. Third-party guides say this can't be changed later.", "owner": "you", "est_time": "10 min", "evidence": "sourced", "source_ids": ["l3", "l4"] },
+        { "title": "Generate the super-admin verification request", "detail": "Write the message that sends the Page verification URL to your LinkedIn Page super admin and explains what they are approving.", "owner": "agent", "est_time": "5 min", "evidence": "sourced", "source_ids": ["l3"] },
         { "title": "Send the Page verification URL to the super admin", "detail": "Settings → Verify → Generate URL. The super admin has 30 days to approve; a denial invalidates all generated links.", "owner": "you", "est_time": "Minutes to 30 days", "evidence": "sourced", "source_ids": ["l3"] }
       ]
     },
     {
       "name": "Configure",
       "steps": [
+        { "title": "Map features to self-serve vs partner permissions", "detail": "Sort each feature into what the self-serve products cover (sign-in, posting as the member) and what needs a partner program (company pages, ads, lead data).", "owner": "agent", "est_time": "15 min", "evidence": "sourced", "source_ids": ["l1"] },
         { "title": "Add self-serve products", "detail": "Products tab: 'Sign In with LinkedIn using OpenID Connect' and 'Share on LinkedIn'. Add redirect URLs on the Auth tab.", "owner": "you", "est_time": "10 min", "evidence": "sourced", "source_ids": ["l1", "l4"] }
       ]
     },

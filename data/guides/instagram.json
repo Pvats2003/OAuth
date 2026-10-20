@@ -32,6 +32,7 @@
     {
       "name": "Register",
       "steps": [
+        { "title": "Pick the login type and minimum permissions", "detail": "From your feature list, choose Instagram Login or Facebook Login for Business and request only the permissions those features use.", "owner": "agent", "est_time": "10 min", "evidence": "sourced", "source_ids": ["m1", "m2"] },
         { "title": "Create a Meta app and add the Instagram product", "detail": "Choose API setup with Instagram Login or with Facebook Login. Don't put Facebook, FB, Instagram or WhatsApp in your app name.", "owner": "you", "est_time": "20 min", "evidence": "sourced", "source_ids": ["m1", "m5"] }
       ]
     },
@@ -46,6 +47,7 @@
       "name": "Go to production",
       "steps": [
         { "title": "Complete Business Verification early", "detail": "Start it the day you start building; it gates Advanced Access.", "owner": "you", "est_time": "Days to 2+ weeks", "evidence": "community", "source_ids": ["m3", "m8"] },
+        { "title": "Draft per-permission use cases and a screencast shot list", "detail": "Write the use-case text and reviewer test instructions for each permission, plus a shot list for each screencast showing the full user flow.", "owner": "agent", "est_time": "1–2 hours", "evidence": "sourced", "source_ids": ["m3", "m4"] },
         { "title": "Prepare the App Review submission", "detail": "Six components: verification, app settings, allowed usage, data handling, data protection, reviewer instructions. Includes a screencast per permission and test credentials.", "owner": "you", "est_time": "4–8 hours of prep", "evidence": "sourced", "source_ids": ["m3", "m4"] },
         { "title": "Meta reviews", "detail": "Permissions can be approved individually; some may be rejected while others pass.", "owner": "provider", "est_time": "~1–3 weeks per round", "evidence": "community", "source_ids": ["m7", "m3"] }
       ]

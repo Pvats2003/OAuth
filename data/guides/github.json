@@ -30,6 +30,7 @@
       "name": "Register",
       "steps": [
         { "title": "Decide OAuth App vs GitHub App", "detail": "See the key decision above. Changing later means a new client ID and secret.", "owner": "agent", "est_time": "5 min", "evidence": "sourced", "source_ids": ["gh2"] },
+        { "title": "Generate the exact form values", "detail": "From your use case, produce the app name, homepage URL and every callback URL (dev, staging, prod) to paste into the registration form.", "owner": "agent", "est_time": "5 min", "evidence": "sourced", "source_ids": ["gh1"] },
         { "title": "Create the app", "detail": "Settings → Developer settings → OAuth apps → New OAuth App. Enter app name, homepage URL, optional description, and callback URL(s). Only use public information.", "owner": "you", "est_time": "5 min", "evidence": "sourced", "source_ids": ["gh1"] },
         { "title": "Add every callback URL you need", "detail": "Current docs allow up to 10 callback URLs per OAuth App (add dev, staging and prod now).", "owner": "you", "est_time": "2 min", "evidence": "sourced", "source_ids": ["gh1"] }
       ]
@@ -45,6 +46,7 @@
     {
       "name": "Go to production",
       "steps": [
+        { "title": "Draft the org-approval note for enterprise customers", "detail": "Explain how members request access and where an org owner approves it (Settings → Third-party Access → OAuth app policy).", "owner": "agent", "est_time": "10 min", "evidence": "sourced", "source_ids": ["gh3", "gh4"] },
         { "title": "Tell enterprise customers about org approval", "detail": "If a customer org has OAuth app access restrictions enabled, members must request approval and an org owner grants it under Settings → Third-party Access → OAuth app policy. Until then your app sees only public org resources.", "owner": "you", "est_time": "Depends on the customer", "evidence": "sourced", "source_ids": ["gh3", "gh4"] }
       ]
     }

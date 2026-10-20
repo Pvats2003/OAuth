@@ -105,7 +105,7 @@ export async function* finishGuide(opts: {
       last_checked: opts.today,
       generated: true,
     },
-    { pages: opts.pages },
+    { pages: opts.pages ?? [] }, // generated guides: always check durations, even if no page text came back
   );
   if (fixes.length) console.log(`self-check fixes for "${opts.input}": ${fixes.join("; ")}`);
   yield { type: "stage", stage: "check", detail: `${downgrades.length} claim(s) downgraded` };
