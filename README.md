@@ -19,11 +19,15 @@ npm run dev                  # http://localhost:3000
 ```
 
 - Without `BLOB_READ_WRITE_TOKEN`, generated guides are saved to `data/generated/` (git-ignored).
-- Two research providers, picked with `RESEARCH_PROVIDER`:
-  - `anthropic` (default): Claude with Anthropic's web search and web fetch. Needs `ANTHROPIC_API_KEY`.
+- Three research providers, picked with `RESEARCH_PROVIDER`. If it isn't set, Groq is used when `GROQ_API_KEY`
+  is set, otherwise Anthropic.
+  - `groq`: `openai/gpt-oss-120b` on Groq's OpenAI-compatible API (`GROQ_MODEL` to change). The model doesn't browse:
+    Tavily runs 6 searches and reads 8 pages, and Groq writes the guide from those passages. Needs `GROQ_API_KEY`
+    and `TAVILY_API_KEY`.
+  - `anthropic`: Claude with Anthropic's web search and web fetch. Needs `ANTHROPIC_API_KEY`.
   - `gemini`: Gemini with Google Search grounding, plus Tavily to read full pages. Needs `GEMINI_API_KEY`
     and `TAVILY_API_KEY`. Model is `GEMINI_MODEL` (default `gemini-3.7-flash`, a Flash model with free-tier quota).
-  Both produce the same guide schema and go through the same validation and self-check.
+  All three produce the same guide schema and go through the same validation, repair round and self-check.
 - The Anthropic agent uses Claude Sonnet 5.5 (`claude-sonnet-5-5`) by default. Set `RESEARCH_MODEL=claude-opus-5-5`
   to use Claude Opus 5.5 instead: deeper research, but about twice the cost and slower.
 - Seed guides live in `data/guides/*.json`. Edit them by hand; the app validates them against `lib/schema.ts` on load.
@@ -33,7 +37,8 @@ npm run dev                  # http://localhost:3000
 
 1. vercel.com → Add New → Project → import this GitHub repo. Framework: Next.js (detected). Deploy.
 2. Project → Settings → Environment Variables: add `ANTHROPIC_API_KEY` (Production and Preview).
-   For Gemini instead: `RESEARCH_PROVIDER=gemini`, `GEMINI_API_KEY` and `TAVILY_API_KEY`.
+   For Groq instead: `GROQ_API_KEY` and `TAVILY_API_KEY` (Groq becomes the default).
+   For Gemini: `RESEARCH_PROVIDER=gemini`, `GEMINI_API_KEY` and `TAVILY_API_KEY`.
    Optionally add `RESEARCH_MODEL=claude-opus-5-5` to switch the agent to Opus.
 3. Project → Storage → Create → Blob → connect it to the project. This adds `BLOB_READ_WRITE_TOKEN` automatically.
 4. Redeploy (Deployments → ⋯ → Redeploy) so the new variables are picked up.
@@ -52,7 +57,9 @@ bursts, not a determined user.
 | `app/api/generate/route.ts` | Runs the agent, streams progress as Server-Sent Events, saves the guide |
 | `lib/agent.ts` | Claude (model from `RESEARCH_MODEL`, default `claude-sonnet-5-5`) with server-side web search + web fetch; schema validation, one repair round |
 | `lib/geminiAgent.ts` | Gemini path: Google Search grounding → Tavily reads the pages → Gemini writes the guide |
-| `lib/research.ts` | Picks the provider from `RESEARCH_PROVIDER` |
+| `lib/groqAgent.ts` | Groq path: Tavily search → Tavily reads the pages → Groq writes the guide |
+| `lib/research.ts` | Picks the provider from `RESEARCH_PROVIDER` (Groq by default when `GROQ_API_KEY` is set) |
+| `lib/retry.ts` | Shared rate-limit retry for Gemini and Groq (wait, retry up to 3 times) |
 | `lib/finalize.ts` | Shared by both: schema validation, one repair round, self-check |
 | `lib/agentPrompt.ts` | System prompt (includes the Gmail guide as the example) |
 | `lib/selfcheck.ts` | Downgrades unsourced claims to `uncertain`; strips `tested` from agent output |
@@ -88,6 +95,13 @@ regenerating the same app costs 1. On a rate limit (429) the agent waits Gemini'
 and retries up to 3 times, showing "Waiting for rate limit…"; it gives up on daily quotas rather than waiting hours.
 The server log names the exact quota, its limit and the retry delay.
 
+With `RESEARCH_PROVIDER=groq` (or just `GROQ_API_KEY` set) the model does no browsing of its own: Tavily runs 6 searches,
+the provider's own pages are ranked first, and Tavily reads 8 of them, keeping only the passages about OAuth review.
+One Groq call writes the guide from those passages (a second only if the JSON needs a repair). Groq's free tier allows
+8,000 tokens a minute and counts each request in full, so this path uses a compact prompt (no worked example) and
+about 10,000 characters of page text. Rate limits get the same wait-and-retry as Gemini; a request that is bigger
+than the per-minute limit fails straight away, because waiting can't help.
+
 ## Evidence: what I tested, corrected and couldn't verify
 
 - **Tested:** _update after setup attempts._
@@ -103,6 +117,8 @@ The server log names the exact quota, its limit and the retry delay.
 - No provider approval was completed for this project.
 - Gemini's free tier is small (reported around 5 requests a minute and 20 a day per model), so expect only a handful
   of Gemini guides a day without billing. Google no longer publishes the free-tier table; AI Studio shows your project's limits.
+- Groq guides are written from shorter page passages and without the worked example, to fit the free tier's
+  8,000 tokens a minute; expect less detail than the Anthropic path. Raise `GROQ_PAGE_CHARS` on a paid Groq plan.
 - Rate limiting is per-server and in memory; it prevents accidental repeat runs, not abuse.
 - Five seed guides, not 100. The same agent builds the rest.
 

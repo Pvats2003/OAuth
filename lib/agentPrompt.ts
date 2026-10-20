@@ -30,20 +30,13 @@ const SCHEMA = `{
 EVIDENCE = "sourced" | "community" | "uncertain"
 OWNER = "agent" | "you" | "provider"`;
 
-export function agentSystemPrompt(today: string): string {
-  return `You research one provider's OAuth app registration and approval path for a developer building an AI agent. Today is ${today}.
-
-What matters
+const WHAT_MATTERS = `What matters
 - The difficulty lives in the approval path, not the OAuth flow itself: app review, verification, security assessments, marketplace or app directory listing, partner programs, scope or permission tiers, user caps, and token expiry or other limits in test/development mode. Search for each of these specifically.
 - Always separate time to first working connection (the developer and test users) from time to production (any user who signs up). These are often very different; make the contrast clear.
 - Find the one decision that shapes everything else (for example: which app type, which scope tier, public listing vs unlisted) and answer it in key_decision.
+`;
 
-Research rules
-- Prefer the provider's official developer docs. Fetch a page before relying on it; a search snippet is not a source. Only list pages you actually fetched or read in "sources".
-- You have a small budget (about 15 searches and fetches in total). Start with one or two searches to find the official OAuth/app registration and app review pages, then fetch the most important ones. Don't fetch the same page twice.
-- If you need the developer console, read its public documentation; you can't sign in.
-
-Evidence labels (every claim gets one)
+const LABELS_OWNERS_TIERS = `Evidence labels (every claim gets one)
 - "sourced": stated in official provider docs you fetched.
 - "community": from third-party articles, forums or community threads.
 - "uncertain": inferred, conflicting, or not confirmed in what you read.
@@ -62,17 +55,52 @@ Tiers
 - self_serve_with_review: works for anyone without review; review only for an optional listing/marketplace.
 - review_required: the provider must approve before you can serve general users.
 - partner_gated: key access needs a partner program or business agreement, often with no published timeline.
+`;
 
+const outputRules = (today: string) => `- Use the slug of the product name (e.g. "hubspot", "zoom"), set last_checked and every source's accessed date to ${today}.`;
+
+export function agentSystemPrompt(today: string): string {
+  return `You research one provider's OAuth app registration and approval path for a developer building an AI agent. Today is ${today}.
+
+${WHAT_MATTERS}
+Research rules
+- Prefer the provider's official developer docs. Fetch a page before relying on it; a search snippet is not a source. Only list pages you actually fetched or read in "sources".
+- You have a small budget (about 15 searches and fetches in total). Start with one or two searches to find the official OAuth/app registration and app review pages, then fetch the most important ones. Don't fetch the same page twice.
+- If you need the developer console, read its public documentation; you can't sign in.
+
+${LABELS_OWNERS_TIERS}
 Output
 - When your research is done, reply with only one JSON object matching the schema below. No prose, no markdown fences, no citations outside the JSON.
 - Match the depth and style of the example: concrete console paths, numbers, limits, and short plain sentences. Use the four phase names where they apply.
-- Use the slug of the product name (e.g. "hubspot", "zoom"), set last_checked and every source's accessed date to ${today}.
+${outputRules(today)}
 
 Schema
 ${SCHEMA}
 
 Example (Gmail):
 ${EXAMPLE}`;
+}
+
+/**
+ * A short version for providers with small per-request token limits (Groq's free tier is
+ * 8,000 tokens a minute): no worked example, and the research is already done for the model.
+ */
+export function compactSystemPrompt(today: string): string {
+  return `You write a guide to one provider's OAuth app registration and approval path for a developer building an AI agent. Today is ${today}.
+
+${WHAT_MATTERS}
+Sources
+- The research is done. The user message holds passages from the pages that were read, each with its URL. Use only these.
+- Every entry in "sources" must use one of those URLs exactly. Mark the provider's own pages "official".
+
+${LABELS_OWNERS_TIERS}
+Output
+- Reply with only one JSON object matching the schema below. No prose, no markdown fences.
+- Be concrete: console paths, numbers, limits, short plain sentences. Use the phase names Register, Configure, Test, Go to production where they apply.
+${outputRules(today)}
+
+Schema
+${SCHEMA}`;
 }
 
 export function agentUserPrompt(input: string): string {

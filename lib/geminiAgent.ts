@@ -2,6 +2,7 @@ import { ApiError, GoogleGenAI } from "@google/genai";
 import { tavily } from "@tavily/core";
 import { agentSystemPrompt, agentUserPrompt } from "./agentPrompt";
 import { CONSOLE_URL, finishGuide, ProviderError, stageForSearch } from "./finalize";
+import { RateLimitError, withRateLimitRetry, type WaitBudget } from "./retry";
 import type { Guide } from "./schema";
 import type { AgentEvent } from "./stages";
 
@@ -17,14 +18,6 @@ const MODEL = process.env.GEMINI_MODEL || "gemini-3.7-flash";
 const MAX_PAGES = 9; // with Gemini's searches, about 15 lookups per guide
 const PAGE_CHARS = 15000;
 
-// Rate limits: retry a 429 up to 3 times, waiting for Gemini's retryDelay or 5s / 15s / 30s.
-// A single wait over 60s (e.g. a daily quota) or more than 120s of waiting in total gives up,
-// so a guide stays inside the route's 300s limit.
-const BACKOFF_MS = [5000, 15000, 30000];
-const MAX_RETRIES = 3;
-const MAX_SINGLE_WAIT_MS = 60_000;
-const MAX_TOTAL_WAIT_MS = 120_000;
-
 // Search results per app, kept for 30 minutes per server instance, so retrying a guide
 // (e.g. after a rate limit in the writing step) doesn't spend another grounded call.
 const RESEARCH_TTL_MS = 30 * 60 * 1000;
@@ -35,13 +28,13 @@ type GenerateResult = { text: string; queries: string[]; pages: { uri: string; t
 type QuotaViolation = { metric?: string; id?: string; limit?: string; dimensions?: Record<string, string> };
 
 /** A Gemini 429. Carries what the API said about which quota ran out and when to retry. */
-export class GeminiRateLimitError extends ProviderError {
+export class GeminiRateLimitError extends RateLimitError {
   constructor(
-    readonly retryDelayMs: number | null,
+    retryDelayMs: number | null,
     readonly quotas: QuotaViolation[],
     options?: { cause?: unknown },
   ) {
-    super(`Gemini rate limit (${quotas.map((q) => q.id).join(", ") || "unknown quota"})`, options);
+    super(`Gemini rate limit (${quotas.map((q) => q.id).join(", ") || "unknown quota"})`, retryDelayMs, true, options);
     this.name = "GeminiRateLimitError";
   }
 }
@@ -169,29 +162,9 @@ Research for this guide is already done. The full text of the pages you may cite
 - Every entry in "sources" must use one of those URLs exactly. Don't cite anything else.
 - Label claims from the provider's official pages "sourced", from other pages "community", and anything not in the pages "uncertain".`;
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/**
- * Calls Gemini, waiting out rate limits. Yields a "wait" event before each pause so the
- * page can show "Waiting for rate limit…"; returns the result.
- */
-async function* generateWithRetry(
-  deps: GeminiDeps,
-  req: Parameters<GeminiDeps["generate"]>[0],
-  budget: { waitedMs: number },
-): AsyncGenerator<AgentEvent, GenerateResult> {
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await deps.generate(req);
-    } catch (err) {
-      if (!(err instanceof GeminiRateLimitError) || attempt >= MAX_RETRIES) throw err;
-      const waitMs = err.retryDelayMs ?? BACKOFF_MS[attempt];
-      if (waitMs > MAX_SINGLE_WAIT_MS || budget.waitedMs + waitMs > MAX_TOTAL_WAIT_MS) throw err;
-      yield { type: "wait", seconds: Math.ceil(waitMs / 1000), attempt: attempt + 1, of: MAX_RETRIES };
-      await sleep(waitMs);
-      budget.waitedMs += waitMs;
-    }
-  }
+/** Calls Gemini, waiting out rate limits (shared logic in retry.ts). */
+function generateWithRetry(deps: GeminiDeps, req: Parameters<GeminiDeps["generate"]>[0], budget: WaitBudget) {
+  return withRateLimitRetry(() => deps.generate(req), budget);
 }
 
 const norm = (u: string) => u.replace(/#.*$/, "").replace(/\/+$/, "").toLowerCase();
@@ -199,7 +172,7 @@ const norm = (u: string) => u.replace(/#.*$/, "").replace(/\/+$/, "").toLowerCas
 export async function* runGeminiAgent(input: string, deps: GeminiDeps = realDeps()): AsyncGenerator<AgentEvent> {
   const today = new Date().toISOString().slice(0, 10);
   const system = agentSystemPrompt(today);
-  const budget = { waitedMs: 0 };
+  const budget: WaitBudget = { waitedMs: 0 };
 
   // 1. Search: one grounded call; Gemini runs all its queries inside it.
   yield { type: "stage", stage: "resolve", detail: input };
