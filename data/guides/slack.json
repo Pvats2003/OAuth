@@ -31,7 +31,7 @@
     {
       "name": "Register",
       "steps": [
-        { "title": "Create the app", "detail": "Go to api.slack.com/apps, create an app from scratch and pick a development workspace.", "owner": "you", "est_time": "5 min", "evidence": "sourced", "source_ids": ["sl5"] },
+        { "title": "Create the app", "detail": "Go to api.slack.com/apps, create an app from scratch and pick a development workspace.", "owner": "you", "est_time": "5 min", "evidence": "community", "source_ids": ["sl5"] },
         { "title": "Choose bot vs user token scopes", "detail": "Bot scopes give an xoxb token for the app; user scopes give an xoxp token that acts as the installing user. Request only what your agent needs.", "owner": "agent", "est_time": "10 min", "evidence": "sourced", "source_ids": ["sl1", "sl5"] }
       ]
     },
@@ -60,7 +60,7 @@
   "nuances": [
     { "title": "No training LLMs on Slack data", "detail": "Slack's developer policy explicitly prohibits using data collected by your app to train an LLM. Agent products must make sure their data handling complies.", "impact": "high", "evidence": "sourced", "source_ids": ["sl4"] },
     { "title": "Coded workflows can't be listed", "detail": "Coded workflows are currently not eligible for the Marketplace.", "impact": "medium", "evidence": "sourced", "source_ids": ["sl3"] },
-    { "title": "Docs moved", "detail": "api.slack.com documentation now redirects to docs.slack.dev, so older links in tutorials may be stale.", "impact": "low", "evidence": "sourced", "source_ids": ["sl5"] }
+    { "title": "Docs moved", "detail": "api.slack.com documentation now redirects to docs.slack.dev, so older links in tutorials may be stale.", "impact": "low", "evidence": "community", "source_ids": ["sl5"] }
   ],
   "blockers": [
     { "symptom": "Can't save a localhost redirect URL", "cause": "Slack requires HTTPS", "fix": "Use an HTTPS tunnel (e.g. ngrok) or a deployed preview URL.", "escalation": "None needed", "evidence": "sourced", "source_ids": ["sl1"] },

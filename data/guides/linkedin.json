@@ -23,7 +23,7 @@
     "source_ids": ["l1", "l2"]
   },
   "prerequisites": [
-    { "item": "LinkedIn account and developer portal access", "required_for": "dev", "owner": "you", "evidence": "sourced", "source_ids": ["l4"] },
+    { "item": "LinkedIn account and developer portal access", "required_for": "dev", "owner": "you", "evidence": "community", "source_ids": ["l4"] },
     { "item": "A LinkedIn Company Page, and its super admin's cooperation", "required_for": "both", "owner": "you", "evidence": "sourced", "source_ids": ["l3", "l4"] },
     { "item": "Privacy policy URL and square logo", "required_for": "both", "owner": "you", "evidence": "community", "source_ids": ["l6"] }
   ],

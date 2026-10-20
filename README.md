@@ -81,6 +81,7 @@ Claude with web search and web fetch: resolves the app → searches for review, 
 - Guides go stale as consoles and policies change. A scheduled re-check is the next step.
 - Live guides depend on public docs; for poorly documented providers expect more "uncertain" labels.
 - No provider approval was completed for this project.
+- Rate limiting is per-server and in memory; it prevents accidental repeat runs, not abuse.
 - Five seed guides, not 100. The same agent builds the rest.
 
 ## Prior art
