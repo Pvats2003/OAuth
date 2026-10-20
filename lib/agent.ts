@@ -6,7 +6,8 @@ import type { AgentEvent, Stage } from "./stages";
 
 export type { AgentEvent } from "./stages";
 
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
+// Sonnet 5.5 by default (faster, half the price of Opus). Set RESEARCH_MODEL=claude-opus-5-5 for deeper research.
+const MODEL = process.env.RESEARCH_MODEL || "claude-sonnet-5-5";
 const EFFORT = (process.env.AGENT_EFFORT || "medium") as "low" | "medium" | "high" | "xhigh" | "max";
 const MAX_CONTINUATIONS = 5;
 

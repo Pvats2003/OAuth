@@ -19,6 +19,8 @@ npm run dev                  # http://localhost:3000
 ```
 
 - Without `BLOB_READ_WRITE_TOKEN`, generated guides are saved to `data/generated/` (git-ignored).
+- The research agent uses Claude Sonnet 5.5 (`claude-sonnet-5-5`) by default. Set `RESEARCH_MODEL=claude-opus-5-5`
+  to use Claude Opus 5.5 instead: deeper research, but about twice the cost and slower.
 - Seed guides live in `data/guides/*.json`. Edit them by hand; the app validates them against `lib/schema.ts` on load.
 - Checks: `npm run lint`, `npx tsc --noEmit`, `npm run build`.
 
@@ -26,6 +28,7 @@ npm run dev                  # http://localhost:3000
 
 1. vercel.com → Add New → Project → import this GitHub repo. Framework: Next.js (detected). Deploy.
 2. Project → Settings → Environment Variables: add `ANTHROPIC_API_KEY` (Production and Preview).
+   Optionally add `RESEARCH_MODEL=claude-opus-5-5` to switch the agent to Opus.
 3. Project → Storage → Create → Blob → connect it to the project. This adds `BLOB_READ_WRITE_TOKEN` automatically.
 4. Redeploy (Deployments → ⋯ → Redeploy) so the new variables are picked up.
 
@@ -41,7 +44,7 @@ bursts, not a determined user.
 | `app/guides/[slug]/page.tsx` | Guide page (all sections, footnotes, print styles) |
 | `app/generate/page.tsx`, `components/Generator.tsx` | Live generation UI (reads the event stream) |
 | `app/api/generate/route.ts` | Runs the agent, streams progress as Server-Sent Events, saves the guide |
-| `lib/agent.ts` | Claude with server-side web search + web fetch; schema validation, one repair round |
+| `lib/agent.ts` | Claude (model from `RESEARCH_MODEL`, default `claude-sonnet-5-5`) with server-side web search + web fetch; schema validation, one repair round |
 | `lib/agentPrompt.ts` | System prompt (includes the Gmail guide as the example) |
 | `lib/selfcheck.ts` | Downgrades unsourced claims to `uncertain`; strips `tested` from agent output |
 | `lib/schema.ts` | Zod schema and types shared by seed and live guides |
@@ -66,7 +69,7 @@ bursts, not a determined user.
 
 ## How the agent works
 
-Claude with web search and web fetch: resolves the app → searches for review, verification, marketplace and scope-tier requirements → reads official pages → checks the public developer console → fills the schema with evidence labels → validates and self-checks (unsourced claims are downgraded to "uncertain") → saves the guide at its own URL.
+Claude (Sonnet 5.5 by default, Opus 5.5 via `RESEARCH_MODEL`) with web search and web fetch: resolves the app → searches for review, verification, marketplace and scope-tier requirements → reads official pages → checks the public developer console → fills the schema with evidence labels → validates and self-checks (unsourced claims are downgraded to "uncertain") → saves the guide at its own URL.
 
 ## Evidence: what I tested, corrected and couldn't verify
 
