@@ -65,9 +65,12 @@ export async function* finishGuide(opts: {
   let parsed = tryParse(opts.rawText);
 
   if (!parsed.ok) {
+    // Field paths and messages only, never guide text.
+    console.error(`guide validation failed for "${opts.input}" (asking the model to repair):\n${parsed.error}`);
     yield { type: "stage", stage: "check", detail: "Fixing schema errors" };
     parsed = tryParse(yield* opts.repair(repairPrompt(parsed.error, opts.rawText)));
     if (!parsed.ok) {
+      console.error(`guide validation failed again after repair for "${opts.input}":\n${parsed.error}`);
       yield { type: "error", message: `The guide didn't match the schema after one fix attempt:\n${parsed.error}` };
       return;
     }

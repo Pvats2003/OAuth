@@ -45,7 +45,17 @@ export async function POST(req: Request) {
             const guide = event.guide;
             // Never overwrite a hand-checked seed guide.
             if (await isSeed(guide.slug)) guide.slug = `${guide.slug}-live`;
-            await saveGuide(guide);
+            try {
+              await saveGuide(guide);
+            } catch (err) {
+              // Storage, not research: log it as such so the cause is clear in Vercel Logs.
+              console.error(
+                `saving guide "${guide.slug}" failed (${process.env.BLOB_READ_WRITE_TOKEN ? `Vercel Blob, access=${process.env.BLOB_ACCESS || "public"}` : "local disk"}):`,
+                err,
+              );
+              send({ type: "error", message: "The guide was written but couldn't be saved. Try again shortly." });
+              return;
+            }
             send({ ...event, guide });
             send({ type: "saved", slug: guide.slug });
           } else {

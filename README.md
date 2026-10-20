@@ -41,6 +41,7 @@ npm run dev                  # http://localhost:3000
    For Gemini: `RESEARCH_PROVIDER=gemini`, `GEMINI_API_KEY` and `TAVILY_API_KEY`.
    Optionally add `RESEARCH_MODEL=claude-opus-5-5` to switch the agent to Opus.
 3. Project → Storage → Create → Blob → connect it to the project. This adds `BLOB_READ_WRITE_TOKEN` automatically.
+   Guides are saved with public access by default; if you created the store as private, also set `BLOB_ACCESS=private`.
 4. Redeploy (Deployments → ⋯ → Redeploy) so the new variables are picked up.
 
 `/api/generate` runs up to 300 seconds (`maxDuration`) and is limited to 10 runs per IP per hour

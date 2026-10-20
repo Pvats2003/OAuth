@@ -12,6 +12,8 @@ const LOCAL_DIR = path.join(process.cwd(), "data", "generated");
 const BLOB_PREFIX = "guides/";
 
 const blobEnabled = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+// Must match the Blob store's own setting, or every save fails. Stores are public unless created as private.
+const blobAccess = (): "public" | "private" => (process.env.BLOB_ACCESS?.trim().toLowerCase() === "private" ? "private" : "public");
 
 async function readDir(dir: string): Promise<Guide[]> {
   let files: string[];
@@ -30,7 +32,7 @@ async function readDir(dir: string): Promise<Guide[]> {
 }
 
 async function readBlob(pathname: string): Promise<Guide | null> {
-  const res = await get(pathname, { access: "private", useCache: false });
+  const res = await get(pathname, { access: blobAccess(), useCache: false });
   if (!res) return null;
   const parsed = GuideSchema.safeParse(JSON.parse(await new Response(res.stream).text()));
   return parsed.success ? parsed.data : null;
@@ -77,11 +79,14 @@ export async function isSeed(slug: string): Promise<boolean> {
 export async function saveGuide(guide: Guide): Promise<void> {
   const body = JSON.stringify(guide, null, 2);
   if (blobEnabled()) {
+    const access = blobAccess();
     await put(`${BLOB_PREFIX}${guide.slug}.json`, body, {
-      access: "private",
+      access,
       addRandomSuffix: false,
       allowOverwrite: true,
       contentType: "application/json",
+      // Public blobs are cached by the CDN (a month by default); keep it short so a regenerated guide shows up.
+      ...(access === "public" ? { cacheControlMaxAge: 60 } : {}),
     });
     return;
   }
