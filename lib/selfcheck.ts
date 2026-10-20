@@ -5,6 +5,7 @@ export type Downgrade = { where: string; text: string; from: EvidenceLabel; reas
 /**
  * Cheap checks after the model returns a valid guide:
  * - an item whose source_ids are empty or point to missing sources -> "uncertain"
+ * - a "sourced" item that cites no official source -> "community"
  * - "tested" is reserved for humans -> "uncertain", and evidence_log.tested is emptied
  */
 export function selfCheck(guide: Guide): { guide: Guide; downgrades: Downgrade[] } {
@@ -27,6 +28,9 @@ export function selfCheck(guide: Guide): { guide: Guide; downgrades: Downgrade[]
         from,
         reason: ids.length === 0 ? "no sources cited" : `cites missing source ${missing.join(", ")}`,
       });
+    } else if (from === "sourced" && !ids.some((id) => byId.get(id)?.type === "official")) {
+      item.evidence = "community";
+      downgrades.push({ where, text, from, reason: "no official source cited" });
     }
     item.source_ids = ids.filter((id) => byId.has(id));
   }

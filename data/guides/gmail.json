@@ -34,7 +34,7 @@
       "steps": [
         { "title": "Create a dedicated Cloud project", "detail": "Verification and scopes are project-wide, so don't share a project with unrelated apps.", "owner": "you", "est_time": "5 min", "evidence": "uncertain", "source_ids": ["g9"] },
         { "title": "Enable the Gmail API and configure the consent screen", "detail": "The consent screen now lives under 'Google Auth Platform' in the console. Set User type External, Publishing status Testing.", "owner": "you", "est_time": "15 min", "evidence": "uncertain", "source_ids": ["g9", "g3"] },
-        { "title": "Create a Web application OAuth client", "detail": "Add your redirect URIs and store the client secret securely.", "owner": "you", "est_time": "5 min", "evidence": "sourced", "source_ids": ["g9"] }
+        { "title": "Create a Web application OAuth client", "detail": "Add your redirect URIs and store the client secret securely.", "owner": "you", "est_time": "5 min", "evidence": "community", "source_ids": ["g9"] }
       ]
     },
     {
