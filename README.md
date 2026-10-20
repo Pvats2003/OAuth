@@ -45,6 +45,8 @@ npm run dev                  # http://localhost:3000
    either `BLOB_STORE_ID` (OIDC: `@vercel/blob` signs in with the deployment's OIDC token, no secret to manage) or a
    read-write token (`BLOB_READ_WRITE_TOKEN`, sometimes named `BLOB_DATABASE_READ_WRITE_TOKEN`). The app accepts any of them.
    Guides are saved with public access by default; if you created the store as private, also set `BLOB_ACCESS=private`.
+   Each regeneration saves a new file (`guides/<slug>/<timestamp>.json`) and the app reads the newest, because a
+   public store's CDN can keep serving the old copy of an overwritten file. Older versions are deleted after a save.
    This step is required on Vercel: without Blob configured, /generate refuses to start ("Blob storage not
    configured"), because Vercel's filesystem is read-only. The `data/generated/` fallback is for local runs only.
 4. Redeploy (Deployments → ⋯ → Redeploy) so the new variables are picked up.

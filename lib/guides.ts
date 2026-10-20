@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { get, list, put } from "@vercel/blob";
+import { del, get, list, put } from "@vercel/blob";
 import { GuideSchema, summarize, type Guide, type GuideSummary } from "./schema";
 
 // Seed guides live in data/guides (read-only, committed).
@@ -9,6 +9,11 @@ import { GuideSchema, summarize, type Guide, type GuideSummary } from "./schema"
 // Blob counts as configured with either:
 // - BLOB_STORE_ID (OIDC): @vercel/blob authenticates by itself with the Vercel OIDC token, or
 // - a read-write token: BLOB_READ_WRITE_TOKEN (or BLOB_DATABASE_READ_WRITE_TOKEN, as some stores name it).
+//
+// In Blob, each save writes a new file, guides/<slug>/<timestamp>.json, and reads pick the newest one
+// found by list() (an API call, never cached). Overwriting one file doesn't work on a public store: get()
+// can't bypass the CDN cache for public blobs, so a regenerated guide could show the previous version.
+// Older single-file guides (guides/<slug>.json) are still read until they're regenerated.
 
 const SEED_DIR = path.join(process.cwd(), "data", "guides");
 const LOCAL_DIR = path.join(process.cwd(), "data", "generated");
@@ -48,11 +53,44 @@ async function readBlob(pathname: string): Promise<Guide | null> {
   return parsed.success ? parsed.data : null;
 }
 
+type BlobEntry = { pathname: string; uploadedAt: Date };
+
+/** guides/notion/1760950000000.json or the older guides/notion.json -> "notion". */
+function slugOf(pathname: string): string | null {
+  return pathname.match(/^guides\/([a-z0-9-]+)(?:\/\d+)?\.json$/)?.[1] ?? null;
+}
+
+async function listBlobs(prefix: string, abortSignal?: AbortSignal): Promise<BlobEntry[]> {
+  const out: BlobEntry[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await list({ prefix, cursor, ...blobAuth(), ...(abortSignal ? { abortSignal } : {}) });
+    out.push(...page.blobs.map((b) => ({ pathname: b.pathname, uploadedAt: new Date(b.uploadedAt) })));
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+  return out;
+}
+
+/** The newest file for each slug. */
+function newestBySlug(blobs: BlobEntry[]): Map<string, BlobEntry> {
+  const newest = new Map<string, BlobEntry>();
+  for (const b of blobs) {
+    const slug = slugOf(b.pathname);
+    if (slug && (!newest.has(slug) || b.uploadedAt > newest.get(slug)!.uploadedAt)) newest.set(slug, b);
+  }
+  return newest;
+}
+
 async function generatedGuides(): Promise<Guide[]> {
   if (!blobEnabled()) return onVercel() ? [] : readDir(LOCAL_DIR);
-  const { blobs } = await list({ prefix: BLOB_PREFIX, ...blobAuth() });
-  const guides = await Promise.all(blobs.map((b) => readBlob(b.pathname).catch(() => null)));
+  const newest = newestBySlug(await listBlobs(BLOB_PREFIX));
+  const guides = await Promise.all([...newest.values()].map((b) => readBlob(b.pathname).catch(() => null)));
   return guides.filter((g): g is Guide => g !== null);
+}
+
+async function blobFilesFor(slug: string, abortSignal?: AbortSignal): Promise<BlobEntry[]> {
+  // "guides/notion" also matches "guides/notion-live/…", so keep only this slug's files.
+  return (await listBlobs(`${BLOB_PREFIX}${slug}`, abortSignal)).filter((b) => slugOf(b.pathname) === slug);
 }
 
 export async function seedGuides(): Promise<Guide[]> {
@@ -71,7 +109,10 @@ export async function getGuide(slug: string): Promise<Guide | null> {
   if (!/^[a-z0-9-]+$/.test(slug)) return null;
   const seed = (await seedGuides()).find((g) => g.slug === slug);
   if (seed) return seed;
-  if (blobEnabled()) return readBlob(`${BLOB_PREFIX}${slug}.json`).catch(() => null);
+  if (blobEnabled()) {
+    const newest = newestBySlug(await blobFilesFor(slug).catch(() => [])).get(slug);
+    return newest ? readBlob(newest.pathname).catch(() => null) : null;
+  }
   if (onVercel()) return null;
   try {
     const parsed = GuideSchema.safeParse(
@@ -116,15 +157,35 @@ export async function saveGuide(guide: Guide): Promise<void> {
   if (storageMissing()) throw new StorageNotConfiguredError();
   if (blobEnabled()) {
     const access = blobAccess();
-    await put(`${BLOB_PREFIX}${guide.slug}.json`, body, {
+    const pathname = `${BLOB_PREFIX}${guide.slug}/${Date.now()}.json`;
+    await put(pathname, body, {
       access,
       addRandomSuffix: false,
-      allowOverwrite: true,
       contentType: "application/json",
       ...blobAuth(),
-      // Public blobs are cached by the CDN (a month by default); keep it short so a regenerated guide shows up.
-      ...(access === "public" ? { cacheControlMaxAge: 60 } : {}),
     });
+    // Remove older versions of this guide. Best effort, capped at 10s (the SDK otherwise retries
+    // for minutes): a leftover old file is never shown, because reads pick the newest.
+    try {
+      const abortSignal = AbortSignal.timeout(10_000);
+      const cleanup = (async () => {
+        const old = (await blobFilesFor(guide.slug, abortSignal)).filter((b) => b.pathname !== pathname).map((b) => b.pathname);
+        if (old.length) await del(old, { ...blobAuth(), abortSignal });
+      })();
+      // The SDK's retry loop doesn't always stop on abort, so also stop waiting after 10s.
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("timed out after 10s")), 10_000);
+      });
+      cleanup.catch(() => {}); // if the timeout wins, a later failure here is already handled
+      try {
+        await Promise.race([cleanup, timeout]);
+      } finally {
+        clearTimeout(timer);
+      }
+    } catch (err) {
+      console.error(`removing older versions of guide "${guide.slug}" failed (not fatal):`, err);
+    }
     return;
   }
   await fs.mkdir(LOCAL_DIR, { recursive: true });
