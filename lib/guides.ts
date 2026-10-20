@@ -4,14 +4,24 @@ import { get, list, put } from "@vercel/blob";
 import { GuideSchema, summarize, type Guide, type GuideSummary } from "./schema";
 
 // Seed guides live in data/guides (read-only, committed).
-// Generated guides go to Vercel Blob when BLOB_READ_WRITE_TOKEN is set,
-// otherwise to data/generated/ on local disk.
+// Generated guides go to Vercel Blob when it is configured, otherwise to data/generated/ on local
+// disk. On Vercel the disk is never used: its filesystem is read-only.
+// Blob counts as configured with either:
+// - BLOB_STORE_ID (OIDC): @vercel/blob authenticates by itself with the Vercel OIDC token, or
+// - a read-write token: BLOB_READ_WRITE_TOKEN (or BLOB_DATABASE_READ_WRITE_TOKEN, as some stores name it).
 
 const SEED_DIR = path.join(process.cwd(), "data", "guides");
 const LOCAL_DIR = path.join(process.cwd(), "data", "generated");
 const BLOB_PREFIX = "guides/";
 
-const blobEnabled = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+const blobToken = () => process.env.BLOB_READ_WRITE_TOKEN ?? process.env.BLOB_DATABASE_READ_WRITE_TOKEN;
+const blobEnabled = () => Boolean(blobToken() || process.env.BLOB_STORE_ID);
+// Pass a token only when there is one; with just BLOB_STORE_ID the SDK uses OIDC on its own.
+const blobAuth = (): { token?: string } => {
+  const token = blobToken();
+  return token ? { token } : {};
+};
+const onVercel = () => Boolean(process.env.VERCEL);
 // Must match the Blob store's own setting, or every save fails. Stores are public unless created as private.
 const blobAccess = (): "public" | "private" => (process.env.BLOB_ACCESS?.trim().toLowerCase() === "private" ? "private" : "public");
 
@@ -32,15 +42,15 @@ async function readDir(dir: string): Promise<Guide[]> {
 }
 
 async function readBlob(pathname: string): Promise<Guide | null> {
-  const res = await get(pathname, { access: blobAccess(), useCache: false });
+  const res = await get(pathname, { access: blobAccess(), useCache: false, ...blobAuth() });
   if (!res) return null;
   const parsed = GuideSchema.safeParse(JSON.parse(await new Response(res.stream).text()));
   return parsed.success ? parsed.data : null;
 }
 
 async function generatedGuides(): Promise<Guide[]> {
-  if (!blobEnabled()) return readDir(LOCAL_DIR);
-  const { blobs } = await list({ prefix: BLOB_PREFIX });
+  if (!blobEnabled()) return onVercel() ? [] : readDir(LOCAL_DIR);
+  const { blobs } = await list({ prefix: BLOB_PREFIX, ...blobAuth() });
   const guides = await Promise.all(blobs.map((b) => readBlob(b.pathname).catch(() => null)));
   return guides.filter((g): g is Guide => g !== null);
 }
@@ -62,6 +72,7 @@ export async function getGuide(slug: string): Promise<Guide | null> {
   const seed = (await seedGuides()).find((g) => g.slug === slug);
   if (seed) return seed;
   if (blobEnabled()) return readBlob(`${BLOB_PREFIX}${slug}.json`).catch(() => null);
+  if (onVercel()) return null;
   try {
     const parsed = GuideSchema.safeParse(
       JSON.parse(await fs.readFile(path.join(LOCAL_DIR, `${slug}.json`), "utf8")),
@@ -76,9 +87,19 @@ export async function isSeed(slug: string): Promise<boolean> {
   return (await seedGuides()).some((g) => g.slug === slug);
 }
 
-/** True when generated guides can't be saved: on Vercel (read-only filesystem) without a Blob token. */
+/** True when generated guides can't be saved: on Vercel (read-only filesystem) with Blob not configured. */
+export function storageLabel(): string {
+  if (!blobEnabled()) return "local disk";
+  const via = process.env.BLOB_READ_WRITE_TOKEN
+    ? "BLOB_READ_WRITE_TOKEN"
+    : process.env.BLOB_DATABASE_READ_WRITE_TOKEN
+      ? "BLOB_DATABASE_READ_WRITE_TOKEN"
+      : "OIDC with BLOB_STORE_ID";
+  return `Vercel Blob via ${via}, access=${blobAccess()}`;
+}
+
 export function storageMissing(): boolean {
-  return Boolean(process.env.VERCEL) && !blobEnabled();
+  return onVercel() && !blobEnabled();
 }
 
 export class StorageNotConfiguredError extends Error {
@@ -99,6 +120,7 @@ export async function saveGuide(guide: Guide): Promise<void> {
       addRandomSuffix: false,
       allowOverwrite: true,
       contentType: "application/json",
+      ...blobAuth(),
       // Public blobs are cached by the CDN (a month by default); keep it short so a regenerated guide shows up.
       ...(access === "public" ? { cacheControlMaxAge: 60 } : {}),
     });

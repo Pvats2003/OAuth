@@ -18,7 +18,8 @@ npm install
 npm run dev                  # http://localhost:3000
 ```
 
-- Without `BLOB_READ_WRITE_TOKEN`, generated guides are saved to `data/generated/` (git-ignored).
+- Without Vercel Blob configured (`BLOB_STORE_ID` or `BLOB_READ_WRITE_TOKEN`), local runs save generated guides
+  to `data/generated/` (git-ignored). On Vercel the disk is never used.
 - Three research providers, picked with `RESEARCH_PROVIDER`. If it isn't set, Groq is used when `GROQ_API_KEY`
   is set, otherwise Anthropic.
   - `groq`: `openai/gpt-oss-120b` on Groq's OpenAI-compatible API (`GROQ_MODEL` to change). The model doesn't browse:
@@ -40,9 +41,11 @@ npm run dev                  # http://localhost:3000
    For Groq instead: `GROQ_API_KEY` and `TAVILY_API_KEY` (Groq becomes the default).
    For Gemini: `RESEARCH_PROVIDER=gemini`, `GEMINI_API_KEY` and `TAVILY_API_KEY`.
    Optionally add `RESEARCH_MODEL=claude-opus-5-5` to switch the agent to Opus.
-3. Project → Storage → Create → Blob → connect it to the project. This adds `BLOB_READ_WRITE_TOKEN` automatically.
+3. Project → Storage → Create → Blob → connect it to the project. Vercel adds the store's credentials automatically:
+   either `BLOB_STORE_ID` (OIDC: `@vercel/blob` signs in with the deployment's OIDC token, no secret to manage) or a
+   read-write token (`BLOB_READ_WRITE_TOKEN`, sometimes named `BLOB_DATABASE_READ_WRITE_TOKEN`). The app accepts any of them.
    Guides are saved with public access by default; if you created the store as private, also set `BLOB_ACCESS=private`.
-   This step is required on Vercel: without `BLOB_READ_WRITE_TOKEN`, /generate refuses to start ("Blob storage not
+   This step is required on Vercel: without Blob configured, /generate refuses to start ("Blob storage not
    configured"), because Vercel's filesystem is read-only. The `data/generated/` fallback is for local runs only.
 4. Redeploy (Deployments → ⋯ → Redeploy) so the new variables are picked up.
 

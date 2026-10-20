@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { ProviderError } from "@/lib/finalize";
 import { missingKeys, researchProvider, runResearch } from "@/lib/research";
 import type { AgentEvent } from "@/lib/stages";
-import { isSeed, saveGuide, storageMissing, StorageNotConfiguredError } from "@/lib/guides";
+import { isSeed, saveGuide, storageLabel, storageMissing, StorageNotConfiguredError } from "@/lib/guides";
 import { rateLimit } from "@/lib/rateLimit";
 
 export const maxDuration = 300;
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   if (!app) return Response.json({ error: "Enter an app name or website." }, { status: 400 });
   // Check storage before spending any research calls: without it the guide couldn't be saved.
   if (storageMissing()) {
-    console.error("Blob storage not configured: BLOB_READ_WRITE_TOKEN is missing on Vercel, so generated guides can't be saved.");
+    console.error("Blob storage not configured: neither BLOB_STORE_ID (OIDC) nor BLOB_READ_WRITE_TOKEN is set on Vercel, so generated guides can't be saved.");
     return Response.json({ error: STORAGE_MESSAGE }, { status: 503 });
   }
 
@@ -58,13 +58,13 @@ export async function POST(req: Request) {
               await saveGuide(guide);
             } catch (err) {
               if (err instanceof StorageNotConfiguredError) {
-                console.error("Blob storage not configured: BLOB_READ_WRITE_TOKEN is missing on Vercel.");
+                console.error("Blob storage not configured: no BLOB_STORE_ID or BLOB_READ_WRITE_TOKEN on Vercel.");
                 send({ type: "error", message: STORAGE_MESSAGE });
                 return;
               }
               // Storage, not research: log it as such so the cause is clear in Vercel Logs.
               console.error(
-                `saving guide "${guide.slug}" failed (${process.env.BLOB_READ_WRITE_TOKEN ? `Vercel Blob, access=${process.env.BLOB_ACCESS || "public"}` : "local disk"}):`,
+                `saving guide "${guide.slug}" failed (${storageLabel()}):`,
                 err,
               );
               send({ type: "error", message: "The guide was written but couldn't be saved. Try again shortly." });
