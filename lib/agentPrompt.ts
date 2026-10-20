@@ -57,6 +57,18 @@ Tiers
 - partner_gated: key access needs a partner program or business agreement, often with no published timeline.
 `;
 
+// The tier test: an optional listing review never makes an app review_required. Shared by all prompts.
+const TIER_TEST = `Choosing the tier (decide this before writing the rest)
+- Ask one question: can a user outside your own workspace or team authorize the app before any review or approval is done?
+- If yes, the tier is self_serve or self_serve_with_review, even when the provider also offers a reviewed directory,
+  marketplace or gallery listing. An optional listing review means self_serve_with_review, and it does not count
+  toward time_to_production.
+- Use review_required or partner_gated only when a review or approval blocks other users from authorizing the app
+  (or from getting the scopes it needs). Say which page states that in key_decision or a nuance.
+- Ignore reviews and approvals for unrelated programs (template galleries, partner or reseller programs, security or
+  bug-bounty programs, certifications) unless the page ties them to OAuth or API access.
+`;
+
 const outputRules = (today: string) => `- Use the slug of the product name (e.g. "hubspot", "zoom"), set last_checked and every source's accessed date to ${today}.`;
 
 export function agentSystemPrompt(today: string): string {
@@ -69,6 +81,7 @@ Research rules
 - If you need the developer console, read its public documentation; you can't sign in.
 
 ${LABELS_OWNERS_TIERS}
+${TIER_TEST}
 Output
 - When your research is done, reply with only one JSON object matching the schema below. No prose, no markdown fences, no citations outside the JSON.
 - Match the depth and style of the example: concrete console paths, numbers, limits, and short plain sentences. Use the four phase names where they apply.
@@ -94,16 +107,7 @@ Sources
 - Every entry in "sources" must use one of those URLs exactly. Mark the provider's own pages "official".
 
 ${LABELS_OWNERS_TIERS}
-Choosing the tier (decide this before writing the rest)
-- Ask one question: can a user outside your own workspace or team authorize the app before any review or approval is done?
-- If yes, the tier is self_serve or self_serve_with_review, even when the provider also offers a reviewed directory,
-  marketplace or gallery listing. An optional listing review means self_serve_with_review, and it does not count
-  toward time_to_production.
-- Use review_required or partner_gated only when a review or approval blocks other users from authorizing the app
-  (or from getting the scopes it needs). Say which page states that in key_decision or a nuance.
-- Ignore reviews and approvals for unrelated programs (template galleries, partner or reseller programs, security or
-  bug-bounty programs, certifications) unless the page ties them to OAuth or API access.
-
+${TIER_TEST}
 Output
 - Reply with only one JSON object matching the schema below. No prose, no markdown fences.
 - Be concrete: console paths, numbers, limits, short plain sentences. Use the phase names Register, Configure, Test, Go to production where they apply.
