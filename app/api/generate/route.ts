@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { runAgent, type AgentEvent } from "@/lib/agent";
 import { isSeed, saveGuide } from "@/lib/guides";
 import { rateLimit } from "@/lib/rateLimit";
@@ -5,6 +6,14 @@ import { rateLimit } from "@/lib/rateLimit";
 export const maxDuration = 300;
 
 type ServerEvent = AgentEvent | { type: "saved"; slug: string };
+
+// API errors (credit, rate limit, overload, network, bad key) all mean "try later" to the user.
+function userMessage(err: unknown): string {
+  if (err instanceof Anthropic.APIError) {
+    return "The research agent is unavailable right now (API credit or rate limit). Try again shortly.";
+  }
+  return "Something went wrong while writing the guide. Try again.";
+}
 
 export async function POST(req: Request) {
   const { input } = (await req.json().catch(() => ({}))) as { input?: string };
@@ -41,8 +50,9 @@ export async function POST(req: Request) {
           }
         }
       } catch (err) {
-        console.error("generate failed:", err);
-        send({ type: "error", message: err instanceof Error ? err.message : "Generation failed." });
+        // Full detail goes to the server log only; the page gets a short message.
+        console.error(`generate failed for "${app}":`, err);
+        send({ type: "error", message: userMessage(err) });
       } finally {
         controller.close();
       }
