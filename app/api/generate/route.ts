@@ -1,5 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { runAgent, type AgentEvent } from "@/lib/agent";
+import { ProviderError } from "@/lib/finalize";
+import { missingKeys, researchProvider, runResearch } from "@/lib/research";
+import type { AgentEvent } from "@/lib/stages";
 import { isSeed, saveGuide } from "@/lib/guides";
 import { rateLimit } from "@/lib/rateLimit";
 
@@ -9,7 +11,7 @@ type ServerEvent = AgentEvent | { type: "saved"; slug: string };
 
 // API errors (credit, rate limit, overload, network, bad key) all mean "try later" to the user.
 function userMessage(err: unknown): string {
-  if (err instanceof Anthropic.APIError) {
+  if (err instanceof Anthropic.APIError || err instanceof ProviderError) {
     return "The research agent is unavailable right now (API credit or rate limit). Try again shortly.";
   }
   return "Something went wrong while writing the guide. Try again.";
@@ -19,8 +21,9 @@ export async function POST(req: Request) {
   const { input } = (await req.json().catch(() => ({}))) as { input?: string };
   const app = (input ?? "").trim().slice(0, 200);
   if (!app) return Response.json({ error: "Enter an app name or website." }, { status: 400 });
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return Response.json({ error: "ANTHROPIC_API_KEY is not set on the server." }, { status: 503 });
+  const missing = missingKeys(researchProvider());
+  if (missing.length) {
+    return Response.json({ error: `${missing.join(" and ")} not set on the server.` }, { status: 503 });
   }
 
   const ip = (req.headers.get("x-forwarded-for") ?? "local").split(",")[0].trim();
@@ -37,7 +40,7 @@ export async function POST(req: Request) {
     async start(controller) {
       const send = (e: ServerEvent) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(e)}\n\n`));
       try {
-        for await (const event of runAgent(app)) {
+        for await (const event of runResearch(app)) {
           if (event.type === "done") {
             const guide = event.guide;
             // Never overwrite a hand-checked seed guide.
