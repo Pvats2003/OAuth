@@ -1,8 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { agentSystemPrompt, agentUserPrompt } from "./agentPrompt";
-import { GuideSchema, slugify, type Guide } from "./schema";
-import { selfCheck, uncertainClaims } from "./selfcheck";
-import type { AgentEvent, Stage } from "./stages";
+import { CONSOLE_URL, finishGuide, stageForSearch } from "./finalize";
+import type { AgentEvent } from "./stages";
 
 export type { AgentEvent } from "./stages";
 
@@ -17,32 +16,11 @@ const TOOLS: Anthropic.Beta.BetaToolUnion[] = [
   { type: "web_fetch_20260209", name: "web_fetch", max_uses: 9, max_content_tokens: 20000 },
 ];
 
-const REVIEW_WORDS = /review|verif|approv|security|assessment|marketplace|directory|listing|partner|scope|permission|limit|production|publish/i;
-const CONSOLE_URL = /console|dashboard|developer\.|developers\.|\/apps\b|app-?management|create-an-app|register|my-?apps|marketplace\.(.*)\/(develop|build)/i;
-
-function stageForSearch(query: string, searches: number): Stage {
-  return searches === 0 && !REVIEW_WORDS.test(query) ? "resolve" : "search";
-}
-
-function extractJson(text: string): unknown {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start === -1 || end <= start) throw new Error("The model did not return JSON.");
-  return JSON.parse(text.slice(start, end + 1));
-}
-
 function textOf(content: Anthropic.Beta.BetaContentBlock[]): string {
   return content
     .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
     .map((b) => b.text)
     .join("");
-}
-
-function formatIssues(err: { issues: { path: PropertyKey[]; message: string }[] }): string {
-  return err.issues
-    .slice(0, 40)
-    .map((i) => `- ${i.path.map(String).join(".") || "(root)"}: ${i.message}`)
-    .join("\n");
 }
 
 export async function* runAgent(input: string): AsyncGenerator<AgentEvent> {
@@ -128,53 +106,23 @@ export async function* runAgent(input: string): AsyncGenerator<AgentEvent> {
     return;
   }
 
-  yield { type: "stage", stage: "check", detail: "Validating against the schema" };
-  const rawText = textOf(final.content);
-  let parsed = tryParse(rawText);
-
-  if (!parsed.ok) {
-    // One repair round: send the errors back.
-    yield { type: "stage", stage: "check", detail: "Fixing schema errors" };
-    const fix = await client.beta.messages
-      .stream({
-        model: MODEL,
-        max_tokens: 64000,
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-        output_config: { effort: "low" },
-        system,
-        messages: [
-          {
-            role: "user",
-            content: `This guide JSON failed validation.\n\nErrors:\n${parsed.error}\n\nJSON:\n${rawText}\n\nReturn only the corrected JSON object. Keep all content; change only what's needed to pass validation.`,
-          },
-        ],
-      })
-      .finalMessage();
-    parsed = tryParse(textOf(fix.content));
-    if (!parsed.ok) {
-      yield { type: "error", message: `The guide didn't match the schema after one fix attempt:\n${parsed.error}` };
-      return;
-    }
-  }
-
-  const { guide, downgrades } = selfCheck({
-    ...parsed.guide,
-    slug: slugify(parsed.guide.slug) || slugify(input),
-    last_checked: today,
-    generated: true,
+  yield* finishGuide({
+    rawText: textOf(final.content),
+    input,
+    today,
+    repair: async (prompt) => {
+      const fix = await client.beta.messages
+        .stream({
+          model: MODEL,
+          max_tokens: 64000,
+          betas: ["server-side-fallback-2026-07-01"],
+          fallbacks: "default",
+          output_config: { effort: "low" },
+          system,
+          messages: [{ role: "user", content: prompt }],
+        })
+        .finalMessage();
+      return textOf(fix.content);
+    },
   });
-  yield { type: "stage", stage: "check", detail: `${downgrades.length} claim(s) downgraded` };
-  yield { type: "done", guide, uncertain: uncertainClaims(guide), downgraded: downgrades.length };
-}
-
-function tryParse(text: string): { ok: true; guide: Guide } | { ok: false; error: string } {
-  let json: unknown;
-  try {
-    json = extractJson(text);
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Invalid JSON" };
-  }
-  const result = GuideSchema.safeParse(json);
-  return result.success ? { ok: true, guide: result.data } : { ok: false, error: formatIssues(result.error) };
 }

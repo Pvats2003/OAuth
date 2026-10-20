@@ -19,7 +19,12 @@ npm run dev                  # http://localhost:3000
 ```
 
 - Without `BLOB_READ_WRITE_TOKEN`, generated guides are saved to `data/generated/` (git-ignored).
-- The research agent uses Claude Sonnet 5.5 (`claude-sonnet-5-5`) by default. Set `RESEARCH_MODEL=claude-opus-5-5`
+- Two research providers, picked with `RESEARCH_PROVIDER`:
+  - `anthropic` (default): Claude with Anthropic's web search and web fetch. Needs `ANTHROPIC_API_KEY`.
+  - `gemini`: Gemini with Google Search grounding, plus Tavily to read full pages. Needs `GEMINI_API_KEY`
+    and `TAVILY_API_KEY`. Model is `GEMINI_MODEL` (default `gemini-3.8-flash`).
+  Both produce the same guide schema and go through the same validation and self-check.
+- The Anthropic agent uses Claude Sonnet 5.5 (`claude-sonnet-5-5`) by default. Set `RESEARCH_MODEL=claude-opus-5-5`
   to use Claude Opus 5.5 instead: deeper research, but about twice the cost and slower.
 - Seed guides live in `data/guides/*.json`. Edit them by hand; the app validates them against `lib/schema.ts` on load.
 - Checks: `npm run lint`, `npx tsc --noEmit`, `npm run build`.
@@ -28,6 +33,7 @@ npm run dev                  # http://localhost:3000
 
 1. vercel.com → Add New → Project → import this GitHub repo. Framework: Next.js (detected). Deploy.
 2. Project → Settings → Environment Variables: add `ANTHROPIC_API_KEY` (Production and Preview).
+   For Gemini instead: `RESEARCH_PROVIDER=gemini`, `GEMINI_API_KEY` and `TAVILY_API_KEY`.
    Optionally add `RESEARCH_MODEL=claude-opus-5-5` to switch the agent to Opus.
 3. Project → Storage → Create → Blob → connect it to the project. This adds `BLOB_READ_WRITE_TOKEN` automatically.
 4. Redeploy (Deployments → ⋯ → Redeploy) so the new variables are picked up.
@@ -45,6 +51,9 @@ bursts, not a determined user.
 | `app/generate/page.tsx`, `components/Generator.tsx` | Live generation UI (reads the event stream) |
 | `app/api/generate/route.ts` | Runs the agent, streams progress as Server-Sent Events, saves the guide |
 | `lib/agent.ts` | Claude (model from `RESEARCH_MODEL`, default `claude-sonnet-5-5`) with server-side web search + web fetch; schema validation, one repair round |
+| `lib/geminiAgent.ts` | Gemini path: Google Search grounding → Tavily reads the pages → Gemini writes the guide |
+| `lib/research.ts` | Picks the provider from `RESEARCH_PROVIDER` |
+| `lib/finalize.ts` | Shared by both: schema validation, one repair round, self-check |
 | `lib/agentPrompt.ts` | System prompt (includes the Gmail guide as the example) |
 | `lib/selfcheck.ts` | Downgrades unsourced claims to `uncertain`; strips `tested` from agent output |
 | `lib/schema.ts` | Zod schema and types shared by seed and live guides |
@@ -70,6 +79,10 @@ bursts, not a determined user.
 ## How the agent works
 
 Claude (Sonnet 5.5 by default, Opus 5.5 via `RESEARCH_MODEL`) with web search and web fetch: resolves the app → searches for review, verification, marketplace and scope-tier requirements → reads official pages → checks the public developer console → fills the schema with evidence labels → validates and self-checks (unsourced claims are downgraded to "uncertain") → saves the guide at its own URL.
+
+With `RESEARCH_PROVIDER=gemini` the same steps run in three calls: Gemini searches with Google Search grounding and
+lists the pages worth reading → Tavily reads up to 9 of them in full → Gemini writes the guide from those pages only.
+Sources that weren't actually read are removed, so any claim citing them drops to "uncertain".
 
 ## Evidence: what I tested, corrected and couldn't verify
 
