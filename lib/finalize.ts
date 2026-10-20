@@ -1,5 +1,5 @@
 import { GuideSchema, slugify, type Guide } from "./schema";
-import { selfCheck, uncertainClaims } from "./selfcheck";
+import { agentStepCount, selfCheck, uncertainClaims, type PageText } from "./selfcheck";
 import type { AgentEvent, Stage } from "./stages";
 
 // Steps shared by every research provider: progress labels, schema validation
@@ -7,6 +7,13 @@ import type { AgentEvent, Stage } from "./stages";
 
 const REVIEW_WORDS = /review|verif|approv|security|assessment|marketplace|directory|listing|partner|scope|permission|limit|production|publish/i;
 export const CONSOLE_URL = /console|dashboard|developer\.|developers\.|\/apps\b|app-?management|create-an-app|register|my-?apps|marketplace\.(.*)\/(develop|build)/i;
+
+/**
+ * Pages about the provider calling other services (e.g. Notion "Workers" that fetch tokens for other
+ * APIs), not about apps asking the provider's users for access. They rank last.
+ */
+export const isOutboundPage = (url: string, title = "") =>
+  /\/workers?(\/|$|\?|#)|\/automations?(\/|$)/i.test(url) || /\bworkers?\b/i.test(title);
 
 export function stageForSearch(query: string, searches: number): Stage {
   return searches === 0 && !REVIEW_WORDS.test(query) ? "resolve" : "search";
@@ -60,29 +67,47 @@ export async function* finishGuide(opts: {
   /** Asks the model to fix the JSON. A generator, so it can report progress (e.g. rate-limit waits). */
   repair: (prompt: string) => AsyncGenerator<AgentEvent, string>;
   prepare?: (guide: Guide) => Guide;
+  /** Text of the pages the agent read; the self-check uses it to verify stated durations. */
+  pages?: PageText[];
 }): AsyncGenerator<AgentEvent> {
   yield { type: "stage", stage: "check", detail: "Validating against the schema" };
   let parsed = tryParse(opts.rawText);
+  // Content rules the schema can't express; they share the one repair round.
+  const contentIssues = (g: Guide) =>
+    agentStepCount(g) < 2
+      ? `- phases: at least two steps must have owner "agent" (choosing scopes, drafting form values, justifications or policy text); found ${agentStepCount(g)}`
+      : "";
 
-  if (!parsed.ok) {
+  const problems = parsed.ok ? contentIssues(parsed.guide) : parsed.error;
+  if (problems) {
     // Field paths and messages only, never guide text.
-    console.error(`guide validation failed for "${opts.input}" (asking the model to repair):\n${parsed.error}`);
+    console.error(`guide validation failed for "${opts.input}" (asking the model to repair):\n${problems}`);
     yield { type: "stage", stage: "check", detail: "Fixing schema errors" };
-    parsed = tryParse(yield* opts.repair(repairPrompt(parsed.error, opts.rawText)));
-    if (!parsed.ok) {
-      console.error(`guide validation failed again after repair for "${opts.input}":\n${parsed.error}`);
-      yield { type: "error", message: `The guide didn't match the schema after one fix attempt:\n${parsed.error}` };
+    const repaired = tryParse(yield* opts.repair(repairPrompt(problems, opts.rawText)));
+    if (repaired.ok) {
+      parsed = repaired;
+    } else if (!parsed.ok) {
+      console.error(`guide validation failed again after repair for "${opts.input}":\n${repaired.error}`);
+      yield { type: "error", message: `The guide didn't match the schema after one fix attempt:\n${repaired.error}` };
       return;
+    } else {
+      // The draft was valid and only missed a content rule; keep it rather than a broken repair.
+      console.error(`repair for "${opts.input}" returned invalid JSON; keeping the valid draft:\n${repaired.error}`);
     }
   }
 
+  if (!parsed.ok) return; // unreachable: every invalid path above has returned
   const prepared = opts.prepare ? opts.prepare(parsed.guide) : parsed.guide;
-  const { guide, downgrades } = selfCheck({
-    ...prepared,
-    slug: slugify(prepared.slug) || slugify(opts.input),
-    last_checked: opts.today,
-    generated: true,
-  });
+  const { guide, downgrades, fixes } = selfCheck(
+    {
+      ...prepared,
+      slug: slugify(prepared.slug) || slugify(opts.input),
+      last_checked: opts.today,
+      generated: true,
+    },
+    { pages: opts.pages },
+  );
+  if (fixes.length) console.log(`self-check fixes for "${opts.input}": ${fixes.join("; ")}`);
   yield { type: "stage", stage: "check", detail: `${downgrades.length} claim(s) downgraded` };
   yield { type: "done", guide, uncertain: uncertainClaims(guide), downgraded: downgrades.length };
 }

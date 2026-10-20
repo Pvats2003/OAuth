@@ -107,8 +107,18 @@ With `RESEARCH_PROVIDER=groq` (or just `GROQ_API_KEY` set) the model does no bro
 the provider's own pages are ranked first, and Tavily reads 8 of them, keeping only the passages about OAuth review.
 One Groq call writes the guide from those passages (a second only if the JSON needs a repair). Groq's free tier allows
 8,000 tokens a minute and counts each request in full, so this path uses a compact prompt (no worked example) and
-about 8,000 characters of page text. Rate limits get the same wait-and-retry as Gemini; a request that is bigger
+about 6,500 characters of page text. Rate limits get the same wait-and-retry as Gemini; a request that is bigger
 than the per-minute limit fails straight away, because waiting can't help.
+
+### Self-check (after validation, for every provider)
+
+- Claims with no source, or citing a missing one, become "uncertain"; "sourced" needs an official source.
+- A verdict timeline stays "sourced" only if a page the agent read states that duration.
+- Marketplace, directory or listing claims must cite a page about the listing, otherwise "uncertain".
+- A self-serve guide whose steps or nuances describe a listing review becomes "self-serve with review".
+- Source ids written into text are removed (citations live in `source_ids`).
+- Fewer than two agent steps: the repair round asks for them, and if still missing they are added from the
+  agent hand-off list, labelled "uncertain".
 
 ## Evidence: what I tested, corrected and couldn't verify
 

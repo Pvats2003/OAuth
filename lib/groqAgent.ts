@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { tavily } from "@tavily/core";
 import { compactSystemPrompt } from "./agentPrompt";
-import { CONSOLE_URL, finishGuide, ProviderError } from "./finalize";
+import { CONSOLE_URL, finishGuide, isOutboundPage, ProviderError } from "./finalize";
 import { RateLimitError, withRateLimitRetry, type WaitBudget } from "./retry";
 import { slugify, type Guide } from "./schema";
 import type { AgentEvent } from "./stages";
@@ -17,9 +17,9 @@ const REASONING = (process.env.GROQ_REASONING_EFFORT || "low") as "low" | "mediu
 const MAX_SEARCHES = 6;
 const MAX_PAGES = 8;
 // Groq's free tier allows 8,000 tokens a minute, and one request counts in full. Keep the
-// prompt small (compact system prompt + about 2,000 tokens of page passages, ~3,700 in all) and
+// prompt small (compact system prompt + about 1,600 tokens of page passages, ~3,700 in all) and
 // leave room for a 4,000-token answer.
-const PAGE_CHARS_TOTAL = Number(process.env.GROQ_PAGE_CHARS || 8000);
+const PAGE_CHARS_TOTAL = Number(process.env.GROQ_PAGE_CHARS || 6500);
 const MAX_COMPLETION_TOKENS = Number(process.env.GROQ_MAX_TOKENS || 4000);
 
 type SearchHit = { url: string; title: string; score: number };
@@ -158,7 +158,8 @@ const TEMPLATE_PAGE = (url: string, title: string) =>
 
 /**
  * Best pages first: the provider's own pages about OAuth, then its other pages, then third-party
- * pages about OAuth, then the rest; Tavily's relevance score breaks ties. Template pages are dropped.
+ * pages about OAuth, then the rest; Tavily's relevance score breaks ties. Template pages are dropped,
+ * and pages about the provider calling other services (e.g. /workers/) rank last.
  */
 export function pickPages(app: string, hits: SearchHit[], max = MAX_PAGES): string[] {
   const token = slugify(app).split("-")[0];
@@ -169,7 +170,8 @@ export function pickPages(app: string, hits: SearchHit[], max = MAX_PAGES): stri
       return 0;
     }
   };
-  const rank = (h: SearchHit) => own(h.url) * 2 + (OAUTH_TOPIC.test(`${h.url} ${h.title}`) ? 1 : 0);
+  const rank = (h: SearchHit) =>
+    own(h.url) * 2 + (OAUTH_TOPIC.test(`${h.url} ${h.title}`) ? 1 : 0) - (isOutboundPage(h.url, h.title) ? 4 : 0);
   const seen = new Set<string>();
   return [...hits]
     .filter((h) => !TEMPLATE_PAGE(h.url, h.title))
@@ -238,5 +240,6 @@ export async function* runGroqAgent(input: string, deps: GroqDeps = realDeps()):
     // Only pages that were actually read count as sources; claims citing anything else
     // then fail the self-check and drop to "uncertain".
     prepare: (guide: Guide) => ({ ...guide, sources: guide.sources.filter((s) => readUrls.has(norm(s.url))) }),
+    pages: read.ok.map((p) => ({ url: p.url, text: p.content })),
   });
 }

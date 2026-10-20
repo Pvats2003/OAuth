@@ -74,6 +74,28 @@ const TIER_TEST = `Choosing the tier (decide this before writing the rest)
   bug-bounty programs, certifications) unless the page ties them to OAuth or API access.
 `;
 
+// Which flow the guide describes, how timelines are labelled, and how citations work. Shared by all prompts.
+const FLOW_TIMELINES_CITATIONS = `Which flow to describe
+- The main steps are the flow where the developer's app asks the provider's users for access to their own accounts
+  (user OAuth: consent screen, authorization code, user tokens).
+- Don't build the steps around server-to-server, client-credentials or account-level tokens that only reach the
+  developer's own account (for example Zoom "Server-to-Server OAuth"); mention them in a nuance if relevant.
+- Don't build the steps around the provider's own features that call other services (for example Notion "Workers"
+  that fetch tokens for other APIs, automations, outbound connectors).
+- Include at least two steps with owner "agent" (choosing scopes, drafting form values, review justifications,
+  privacy policy text).
+
+Timelines
+- When no review blocks other users, give time_to_first_connection and time_to_production in minutes or hours,
+  unless a page you read states a longer time.
+- Label a duration "sourced" only when a page you read states it; otherwise "uncertain".
+
+Citations
+- Cite only through source_ids. Never write source ids such as "[n1]" or "(sources: g2)" in text.
+- Every marketplace, directory or listing claim must cite the page that describes the listing; otherwise label it
+  "uncertain".
+`;
+
 const outputRules = (today: string) => `- Use the slug of the product name (e.g. "hubspot", "zoom"), set last_checked and every source's accessed date to ${today}.`;
 
 export function agentSystemPrompt(today: string): string {
@@ -87,6 +109,7 @@ Research rules
 
 ${LABELS_OWNERS_TIERS}
 ${TIER_TEST}
+${FLOW_TIMELINES_CITATIONS}
 Output
 - When your research is done, reply with only one JSON object matching the schema below. No prose, no markdown fences, no citations outside the JSON.
 - Match the depth and style of the example: concrete console paths, numbers, limits, and short plain sentences. Use the four phase names where they apply.
@@ -113,6 +136,7 @@ Sources
 
 ${LABELS_OWNERS_TIERS}
 ${TIER_TEST}
+${FLOW_TIMELINES_CITATIONS}
 Output
 - Reply with only one JSON object matching the schema below. No prose, no markdown fences.
 - Be concrete: console paths, numbers, limits, short plain sentences. Use the phase names Register, Configure, Test, Go to production where they apply.

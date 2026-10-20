@@ -1,7 +1,7 @@
 import { ApiError, GoogleGenAI } from "@google/genai";
 import { tavily } from "@tavily/core";
 import { agentSystemPrompt, agentUserPrompt } from "./agentPrompt";
-import { CONSOLE_URL, finishGuide, ProviderError, stageForSearch } from "./finalize";
+import { CONSOLE_URL, finishGuide, isOutboundPage, ProviderError, stageForSearch } from "./finalize";
 import { RateLimitError, withRateLimitRetry, type WaitBudget } from "./retry";
 import type { Guide } from "./schema";
 import type { AgentEvent } from "./stages";
@@ -200,7 +200,10 @@ export async function* runGeminiAgent(input: string, deps: GeminiDeps = realDeps
   const grounded = await Promise.all(research.pages.map((p) => deps.resolve(p.uri)));
   const seen = new Set<string>();
   const urls: string[] = [];
-  for (const raw of [...listed, ...grounded]) {
+  // Pages about the provider calling other services (e.g. /workers/) go last.
+  const candidates = [...listed, ...grounded].filter((u): u is string => Boolean(u));
+  candidates.sort((a, b) => Number(isOutboundPage(a)) - Number(isOutboundPage(b)));
+  for (const raw of candidates) {
     if (!raw) continue;
     const url = raw.replace(/[.,;:]+$/, "");
     if (/vertexaisearch\.cloud\.google\.com|google\.com\/search/.test(url) || seen.has(norm(url))) continue;
@@ -255,5 +258,6 @@ export async function* runGeminiAgent(input: string, deps: GeminiDeps = realDeps
     // Only pages that were actually read count as sources; claims citing anything
     // else then fail the self-check and drop to "uncertain".
     prepare: (guide: Guide) => ({ ...guide, sources: guide.sources.filter((s) => readUrls.has(norm(s.url))) }),
+    pages: read.ok.map((p) => ({ url: p.url, text: p.content })),
   });
 }

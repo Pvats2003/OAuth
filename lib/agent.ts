@@ -23,6 +23,17 @@ function textOf(content: Anthropic.Beta.BetaContentBlock[]): string {
     .join("");
 }
 
+/** Text of the pages web_fetch returned, so the self-check can verify durations against them. */
+function fetchedPages(blocks: (Anthropic.Beta.BetaContentBlock | Anthropic.Beta.BetaContentBlockParam)[]) {
+  const pages: { url: string; text: string }[] = [];
+  for (const b of blocks) {
+    if (b.type !== "web_fetch_tool_result" || b.content.type !== "web_fetch_result") continue;
+    const src = b.content.content.source;
+    if (src.type === "text") pages.push({ url: b.content.url, text: src.data });
+  }
+  return pages;
+}
+
 export async function* runAgent(input: string): AsyncGenerator<AgentEvent> {
   const client = new Anthropic();
   const today = new Date().toISOString().slice(0, 10);
@@ -107,6 +118,7 @@ export async function* runAgent(input: string): AsyncGenerator<AgentEvent> {
   }
 
   yield* finishGuide({
+    pages: fetchedPages([...assistantSoFar, ...final.content]),
     rawText: textOf(final.content),
     input,
     today,
