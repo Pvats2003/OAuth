@@ -1,0 +1,76 @@
+{
+  "slug": "github",
+  "name": "GitHub",
+  "website": "https://github.com",
+  "category": "Developer tools",
+  "last_checked": "2026-10-20",
+  "verdict": {
+    "tier": "self_serve",
+    "difficulty": 1,
+    "summary": "No provider review. You can register an app and connect your first user in minutes. The real work is choosing OAuth App vs GitHub App, and knowing that organizations can block your app until an owner approves it.",
+    "time_to_first_connection": { "estimate": "10–20 minutes", "basis": "Estimate from the documented registration form; no review step exists.", "evidence": "sourced" },
+    "time_to_production": { "estimate": "Same day", "basis": "No app review for OAuth Apps or GitHub Apps outside Marketplace listing.", "evidence": "sourced" },
+    "top_blockers": [
+      "Org owners with OAuth app access restrictions must approve your app before it can see private org resources",
+      "Picking OAuth App when a GitHub App fits better (or the reverse) forces a re-registration later"
+    ]
+  },
+  "key_decision": {
+    "question": "OAuth App or GitHub App?",
+    "recommendation": "GitHub App for most agent integrations; OAuth App only if you need enterprise-level resources.",
+    "why": "GitHub recommends GitHub Apps in general: fine-grained permissions, per-repository access, short-lived tokens, and they are not subject to org OAuth app policies. OAuth Apps act on everything the user can see and cannot use granular permissions.",
+    "source_ids": ["gh2"]
+  },
+  "prerequisites": [
+    { "item": "A GitHub account (personal or an org where you are admin)", "required_for": "dev", "owner": "you", "evidence": "sourced", "source_ids": ["gh1"] },
+    { "item": "Public homepage URL and callback URL(s)", "required_for": "both", "owner": "you", "evidence": "sourced", "source_ids": ["gh1"] }
+  ],
+  "phases": [
+    {
+      "name": "Register",
+      "steps": [
+        { "title": "Decide OAuth App vs GitHub App", "detail": "See the key decision above. Changing later means a new client ID and secret.", "owner": "agent", "est_time": "5 min", "evidence": "sourced", "source_ids": ["gh2"] },
+        { "title": "Create the app", "detail": "Settings → Developer settings → OAuth apps → New OAuth App. Enter app name, homepage URL, optional description, and callback URL(s). Only use public information.", "owner": "you", "est_time": "5 min", "evidence": "sourced", "source_ids": ["gh1"] },
+        { "title": "Add every callback URL you need", "detail": "Current docs allow up to 10 callback URLs per OAuth App (add dev, staging and prod now).", "owner": "you", "est_time": "2 min", "evidence": "sourced", "source_ids": ["gh1"] }
+      ]
+    },
+    {
+      "name": "Configure",
+      "steps": [
+        { "title": "Decide on token expiry", "detail": "'Expire user access tokens' is on by default. Keep it on and handle refresh tokens, or uncheck it until your code supports short-lived tokens.", "owner": "you", "est_time": "2 min", "evidence": "sourced", "source_ids": ["gh1"] },
+        { "title": "Enable Device Flow if your agent runs headless or in a CLI", "detail": "Device Flow lets a user authorize on github.com/login/device without a browser redirect back to your app.", "owner": "you", "est_time": "1 min", "evidence": "sourced", "source_ids": ["gh1"] },
+        { "title": "Store client ID and secret in your secrets manager", "detail": "Never commit them. Rotate if leaked.", "owner": "you", "est_time": "5 min", "evidence": "sourced", "source_ids": ["gh1"] }
+      ]
+    },
+    {
+      "name": "Go to production",
+      "steps": [
+        { "title": "Tell enterprise customers about org approval", "detail": "If a customer org has OAuth app access restrictions enabled, members must request approval and an org owner grants it under Settings → Third-party Access → OAuth app policy. Until then your app sees only public org resources.", "owner": "you", "est_time": "Depends on the customer", "evidence": "sourced", "source_ids": ["gh3", "gh4"] }
+      ]
+    }
+  ],
+  "nuances": [
+    { "title": "Org approval is the hidden blocker", "detail": "Your users may connect successfully but see none of their company's private repos. That's the org policy, not your code.", "impact": "high", "evidence": "sourced", "source_ids": ["gh3", "gh4"] },
+    { "title": "Limit of 100 OAuth apps per user or org", "detail": "Rarely an issue, but relevant if you create one app per customer.", "impact": "low", "evidence": "sourced", "source_ids": ["gh1"] }
+  ],
+  "blockers": [
+    { "symptom": "User connected but private org repos are missing", "cause": "Org has OAuth app access restrictions", "fix": "Ask the user to request approval; an org owner approves under OAuth app policy. Or switch to a GitHub App, which orgs install per repo.", "escalation": "Customer's org owner", "evidence": "sourced", "source_ids": ["gh3", "gh2"] },
+    { "symptom": "redirect_uri mismatch error", "cause": "Callback URL not registered", "fix": "Add the exact URL to the app's callback list.", "escalation": "None needed", "evidence": "uncertain", "source_ids": ["gh1"] }
+  ],
+  "agent_handoff": {
+    "agent_can": ["Recommend OAuth App vs GitHub App from your use case", "Generate the exact form values (name, homepage, callback URLs)", "Draft the org-approval note you send to enterprise customers"],
+    "you_must": ["Sign in and submit the registration form", "Copy the client secret into your secrets manager", "Handle org owner approvals with customers"]
+  },
+  "evidence_log": {
+    "tested": [],
+    "corrected": ["Older GitHub docs and many tutorials say OAuth Apps can't have multiple callback URLs. Current docs (checked 2026-10-20) allow up to 10."],
+    "unverified": ["A third-party guide says callback wildcard matching became a per-URL setting on 2026-08-03; not confirmed in GitHub's own docs.", "Exact error text for redirect mismatch not checked."]
+  },
+  "sources": [
+    { "id": "gh1", "title": "Creating an OAuth app", "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/creating-an-oauth-app", "type": "official", "accessed": "2026-10-20" },
+    { "id": "gh2", "title": "Differences between GitHub Apps and OAuth apps", "url": "https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/differences-between-github-apps-and-oauth-apps", "type": "official", "accessed": "2026-10-20" },
+    { "id": "gh3", "title": "Approving OAuth apps for your organization", "url": "https://docs.github.com/en/organizations/managing-oauth-access-to-your-organizations-data/approving-oauth-apps-for-your-organization", "type": "official", "accessed": "2026-10-20" },
+    { "id": "gh4", "title": "Authorizing OAuth apps", "url": "https://docs.github.com/articles/authorizing-oauth-apps", "type": "official", "accessed": "2026-10-20" },
+    { "id": "gh5", "title": "GitHub OAuth2 App Registration (Unified.to skill)", "url": "https://docs.unified.to/skills/github-oauth-app/SKILL.md", "type": "third_party", "accessed": "2026-10-20" }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "slug": "linkedin",
+  "name": "LinkedIn",
+  "website": "https://www.linkedin.com",
+  "category": "Social / professional",
+  "last_checked": "2026-10-20",
+  "verdict": {
+    "tier": "partner_gated",
+    "difficulty": 4,
+    "summary": "Two different stories. Sign-in and posting as the member are self-serve and work the same day, once a LinkedIn Page super admin verifies your app. Almost everything else (ads, company pages, Sales Navigator, recruiting) needs partner approval with no published timeline.",
+    "time_to_first_connection": { "estimate": "30 minutes (if you control a Page) to days (if you need someone else's approval)", "basis": "Credentials are issued at app creation, but the app must be associated with a LinkedIn Page and verified by its super admin, who has 30 days to approve.", "evidence": "sourced" },
+    "time_to_production": { "estimate": "Same day (self-serve products) · weeks to never (partner programs)", "basis": "LinkedIn says most permissions require explicit approval; partner access is decided per applicant. No timelines published.", "evidence": "sourced" },
+    "top_blockers": [
+      "Every app needs a LinkedIn Page and super-admin verification",
+      "Marketing, Sales and Talent APIs are partner programs with no guaranteed approval",
+      "Self-serve apps reportedly can't use programmatic refresh tokens"
+    ]
+  },
+  "key_decision": {
+    "question": "Can your use case live inside the self-serve products?",
+    "recommendation": "If you only need sign-in (openid, profile, email) and posting as the member (w_member_social), stay self-serve. If you need company pages, ads or lead data, apply to the partner program early and plan a fallback.",
+    "why": "Self-serve products are available immediately; partner programs are approved case by case.",
+    "source_ids": ["l1", "l2"]
+  },
+  "prerequisites": [
+    { "item": "LinkedIn account and developer portal access", "required_for": "dev", "owner": "you", "evidence": "sourced", "source_ids": ["l4"] },
+    { "item": "A LinkedIn Company Page, and its super admin's cooperation", "required_for": "both", "owner": "you", "evidence": "sourced", "source_ids": ["l3", "l4"] },
+    { "item": "Privacy policy URL and square logo", "required_for": "both", "owner": "you", "evidence": "community", "source_ids": ["l6"] }
+  ],
+  "phases": [
+    {
+      "name": "Register",
+      "steps": [
+        { "title": "Create the app and pick its LinkedIn Page", "detail": "The Page's company becomes the app's publisher. Third-party guides say this can't be changed later.", "owner": "you", "est_time": "10 min", "evidence": "sourced", "source_ids": ["l3", "l4"] },
+        { "title": "Send the Page verification URL to the super admin", "detail": "Settings → Verify → Generate URL. The super admin has 30 days to approve; a denial invalidates all generated links.", "owner": "you", "est_time": "Minutes to 30 days", "evidence": "sourced", "source_ids": ["l3"] }
+      ]
+    },
+    {
+      "name": "Configure",
+      "steps": [
+        { "title": "Add self-serve products", "detail": "Products tab: 'Sign In with LinkedIn using OpenID Connect' and 'Share on LinkedIn'. Add redirect URLs on the Auth tab.", "owner": "you", "est_time": "10 min", "evidence": "sourced", "source_ids": ["l1", "l4"] }
+      ]
+    },
+    {
+      "name": "Go to production",
+      "steps": [
+        { "title": "Apply for partner programs if needed", "detail": "Marketing (Advertising API) is applied for in the Developer Portal; Sales Navigator via SNAP; Talent via partner applications. Some programs are closed.", "owner": "you", "est_time": "Not published", "evidence": "sourced", "source_ids": ["l1"] },
+        { "title": "LinkedIn decides", "detail": "Approval depends on use case, data needed and volume.", "owner": "provider", "est_time": "Not published", "evidence": "uncertain", "source_ids": ["l1", "l5"] }
+      ]
+    }
+  ],
+  "nuances": [
+    { "title": "Users must re-consent when tokens expire", "detail": "Third-party sources say programmatic refresh tokens are limited to approved partners, so self-serve apps send users back through the OAuth screen.", "impact": "high", "evidence": "uncertain", "source_ids": ["l5"] },
+    { "title": "Development tier is not production", "detail": "Third-party sources say Marketing access starts at a limited Development tier, and Standard tier needs a separate review with a video.", "impact": "medium", "evidence": "community", "source_ids": ["l6", "l7"] }
+  ],
+  "blockers": [
+    { "symptom": "App stuck as unverified", "cause": "Page super admin hasn't approved", "fix": "Identify the super admin first and resend the link; links last 30 days.", "escalation": "Your company's Page super admin", "evidence": "sourced", "source_ids": ["l3"] },
+    { "symptom": "Needed permission isn't available to request", "cause": "It belongs to a partner program", "fix": "Apply through the Developer Portal or redesign around self-serve products.", "escalation": "LinkedIn partner program", "evidence": "sourced", "source_ids": ["l1"] }
+  ],
+  "agent_handoff": {
+    "agent_can": ["Map your features to self-serve vs partner permissions", "Draft the partner application use-case description", "Generate the super-admin verification request message"],
+    "you_must": ["Create the app signed in to LinkedIn", "Get the Page super admin to approve", "Submit partner applications and any review video"]
+  },
+  "evidence_log": {
+    "tested": [],
+    "corrected": [],
+    "unverified": ["Refresh-token restriction comes from third parties, not LinkedIn docs checked today.", "Partner approval timelines are not published.", "Whether the associated Page can be changed after creation."]
+  },
+  "sources": [
+    { "id": "l1", "title": "Getting Access to LinkedIn APIs", "url": "https://learn.microsoft.com/en-us/linkedin/shared/authentication/getting-access", "type": "official", "accessed": "2026-10-20" },
+    { "id": "l2", "title": "LinkedIn API Terms of Use", "url": "https://developer.linkedin.com/legal/api-terms-of-use", "type": "official", "accessed": "2026-10-20" },
+    { "id": "l3", "title": "Send an app verification request for a LinkedIn Page", "url": "https://www.linkedin.com/help/learning/answer/a1665329", "type": "official", "accessed": "2026-10-20" },
+    { "id": "l4", "title": "LinkedIn OAuth (WorkOS docs)", "url": "https://workos.com/docs/integrations/linkedin-oauth.md", "type": "third_party", "accessed": "2026-10-20" },
+    { "id": "l5", "title": "Is the LinkedIn API free? (OpenTweet)", "url": "https://opentweet.io/answers/is-the-linkedin-api-free", "type": "third_party", "accessed": "2026-10-20" },
+    { "id": "l6", "title": "LinkedIn API access & approval (singhamandeep.com)", "url": "https://singhamandeep.com/?p=1387", "type": "community", "accessed": "2026-10-20" },
+    { "id": "l7", "title": "LinkedIn agent access field guide (Vorp Labs)", "url": "https://vorplabs.com/agent-tools/linkedin-cli", "type": "third_party", "accessed": "2026-10-20" }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "slug": "slack",
+  "name": "Slack",
+  "website": "https://slack.com",
+  "category": "Communication",
+  "last_checked": "2026-10-20",
+  "verdict": {
+    "tier": "self_serve_with_review",
+    "difficulty": 2,
+    "summary": "You can build, install and share your app with other workspaces the same day. Commercial distribution at scale is expected to go through Slack Marketplace review, and Slack's policy bans using its data to train an LLM, which matters for agent builders.",
+    "time_to_first_connection": { "estimate": "15–30 minutes", "basis": "Estimate: create app, add scopes and an HTTPS redirect URL, install to your workspace.", "evidence": "sourced" },
+    "time_to_production": { "estimate": "Same day (unlisted) or weeks (Marketplace)", "basis": "Unlisted public distribution is a toggle. Marketplace review time varies with volume; Slack shows an estimate on the submission page.", "evidence": "sourced" },
+    "top_blockers": [
+      "Redirect URLs must be HTTPS, so localhost dev needs a tunnel",
+      "Marketplace review is manual and returns apps that aren't fully functional",
+      "Some scopes aren't accepted for the Marketplace"
+    ]
+  },
+  "key_decision": {
+    "question": "Unlisted distribution or Slack Marketplace?",
+    "recommendation": "Unlisted for pilots with early customers; submit to the Marketplace before selling at scale.",
+    "why": "Slack's developer policy (updated Dec 2024) says apps intended for commercial distribution at scale should go through Marketplace review, and forbids offering a parallel unlisted app that circumvents Marketplace guidelines.",
+    "source_ids": ["sl2", "sl4"]
+  },
+  "prerequisites": [
+    { "item": "A Slack workspace where you can install apps", "required_for": "dev", "owner": "you", "evidence": "sourced", "source_ids": ["sl1"] },
+    { "item": "An HTTPS redirect URL (no # anchors)", "required_for": "both", "owner": "you", "evidence": "sourced", "source_ids": ["sl1"] },
+    { "item": "Public support page and fully working app", "required_for": "production", "owner": "you", "evidence": "sourced", "source_ids": ["sl3"] }
+  ],
+  "phases": [
+    {
+      "name": "Register",
+      "steps": [
+        { "title": "Create the app", "detail": "Go to api.slack.com/apps, create an app from scratch and pick a development workspace.", "owner": "you", "est_time": "5 min", "evidence": "sourced", "source_ids": ["sl5"] },
+        { "title": "Choose bot vs user token scopes", "detail": "Bot scopes give an xoxb token for the app; user scopes give an xoxp token that acts as the installing user. Request only what your agent needs.", "owner": "agent", "est_time": "10 min", "evidence": "sourced", "source_ids": ["sl1", "sl5"] }
+      ]
+    },
+    {
+      "name": "Configure",
+      "steps": [
+        { "title": "Add redirect URLs", "detail": "Under OAuth & Permissions. Must be HTTPS. The redirect_uri you send must match or be a subdirectory of a registered URL.", "owner": "you", "est_time": "5 min", "evidence": "sourced", "source_ids": ["sl1"] },
+        { "title": "Decide on token rotation before launch", "detail": "Opt-in. When on, access tokens expire in 12 hours and need refreshing. A third-party guide says it can't be turned off once enabled.", "owner": "you", "est_time": "5 min", "evidence": "uncertain", "source_ids": ["sl5"] }
+      ]
+    },
+    {
+      "name": "Test",
+      "steps": [
+        { "title": "Install to your own workspace and run the OAuth flow", "detail": "Use the authorize URL https://slack.com/oauth/v2/authorize with your client_id and scopes.", "owner": "you", "est_time": "10 min", "evidence": "sourced", "source_ids": ["sl1"] }
+      ]
+    },
+    {
+      "name": "Go to production",
+      "steps": [
+        { "title": "Activate public distribution", "detail": "Manage Distribution → Share Your App with Other Workspaces → Activate Public Distribution. This makes the app installable by other workspaces without being listed.", "owner": "you", "est_time": "10 min", "evidence": "sourced", "source_ids": ["sl2"] },
+        { "title": "Submit to the Slack Marketplace (for commercial scale)", "detail": "Public distribution is a prerequisite. Review has a preliminary stage then a functional review. Submit only a bug-free, complete app.", "owner": "you", "est_time": "Varies, see submission page", "evidence": "sourced", "source_ids": ["sl6", "sl3"] },
+        { "title": "Wait for Marketplace review", "detail": "Turnaround varies with volume.", "owner": "provider", "est_time": "Not published", "evidence": "uncertain", "source_ids": ["sl3"] }
+      ]
+    }
+  ],
+  "nuances": [
+    { "title": "No training LLMs on Slack data", "detail": "Slack's developer policy explicitly prohibits using data collected by your app to train an LLM. Agent products must make sure their data handling complies.", "impact": "high", "evidence": "sourced", "source_ids": ["sl4"] },
+    { "title": "Coded workflows can't be listed", "detail": "Coded workflows are currently not eligible for the Marketplace.", "impact": "medium", "evidence": "sourced", "source_ids": ["sl3"] },
+    { "title": "Docs moved", "detail": "api.slack.com documentation now redirects to docs.slack.dev, so older links in tutorials may be stale.", "impact": "low", "evidence": "sourced", "source_ids": ["sl5"] }
+  ],
+  "blockers": [
+    { "symptom": "Can't save a localhost redirect URL", "cause": "Slack requires HTTPS", "fix": "Use an HTTPS tunnel (e.g. ngrok) or a deployed preview URL.", "escalation": "None needed", "evidence": "sourced", "source_ids": ["sl1"] },
+    { "symptom": "Marketplace submission returned", "cause": "App not fully functional or uses unaccepted scopes", "fix": "Fix bugs, trim scopes, resubmit.", "escalation": "Slack Marketplace team via the submission page", "evidence": "sourced", "source_ids": ["sl3"] }
+  ],
+  "agent_handoff": {
+    "agent_can": ["Map your agent's actions to the minimum bot/user scopes", "Generate the app manifest and redirect URL list", "Draft Marketplace listing copy and a pre-submission checklist"],
+    "you_must": ["Create the app while signed in to Slack", "Set up HTTPS hosting or a tunnel", "Submit for Marketplace review and answer reviewer questions"]
+  },
+  "evidence_log": {
+    "tested": [],
+    "corrected": [],
+    "unverified": ["Marketplace review duration: Slack doesn't publish a number outside the submission page.", "That token rotation is irreversible comes from a third-party guide, not Slack's docs."]
+  },
+  "sources": [
+    { "id": "sl1", "title": "Installing with OAuth", "url": "https://docs.slack.dev/authentication/installing-with-oauth", "type": "official", "accessed": "2026-10-20" },
+    { "id": "sl2", "title": "App distribution", "url": "https://docs.slack.dev/distribution", "type": "official", "accessed": "2026-10-20" },
+    { "id": "sl3", "title": "Slack Marketplace review guide", "url": "https://docs.slack.dev/slack-marketplace/slack-marketplace-review-guide", "type": "official", "accessed": "2026-10-20" },
+    { "id": "sl4", "title": "Slack App Developer Policy updates (Dec 2024)", "url": "https://docs.slack.dev/changelog/2024/12/10/dev-policy-update", "type": "official", "accessed": "2026-10-20" },
+    { "id": "sl5", "title": "Slack OAuth2 App Registration (Unified.to skill)", "url": "https://docs.unified.to/skills/slack-oauth-app/SKILL.md", "type": "third_party", "accessed": "2026-10-20" },
+    { "id": "sl6", "title": "Distributing your app in the Slack Marketplace", "url": "https://docs.slack.dev/slack-marketplace/distributing-your-app-in-the-slack-marketplace", "type": "official", "accessed": "2026-10-20" }
+  ]
+}

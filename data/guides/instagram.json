@@ -1,0 +1,84 @@
+{
+  "slug": "instagram",
+  "name": "Instagram (Meta)",
+  "website": "https://www.instagram.com",
+  "category": "Social media",
+  "last_checked": "2026-10-20",
+  "verdict": {
+    "tier": "review_required",
+    "difficulty": 4,
+    "summary": "You can test with accounts that have a role on your app right away. Serving anyone else needs Advanced Access, which requires both Meta App Review and Business Verification. Expect weeks, multiple submissions are common, and Business Verification must finish before you can even submit.",
+    "time_to_first_connection": { "estimate": "1–2 hours", "basis": "Estimate: create Meta app, add Instagram product, configure Business Login, connect your own professional account.", "evidence": "sourced" },
+    "time_to_production": { "estimate": "2–6 weeks, longer with rejections", "basis": "Third parties report Meta's dashboard now shows ~20-day review estimates; Business Verification can sit 10+ days first; each resubmission restarts the clock.", "evidence": "community" },
+    "top_blockers": [
+      "Business Verification pending blocks App Review for Advanced Access",
+      "A screencast is needed for every permission; vague ones get rejected",
+      "Only Instagram professional (business/creator) accounts are supported"
+    ]
+  },
+  "key_decision": {
+    "question": "Instagram Login or Facebook Login for Business?",
+    "recommendation": "Instagram Login (Business Login for Instagram) if your users only need their Instagram professional account; Facebook Login for Business if they manage IG through Facebook Pages or you need other Meta APIs.",
+    "why": "They issue different token types and unlock different permission sets. Instagram Login supports web only.",
+    "source_ids": ["m1", "m2"]
+  },
+  "prerequisites": [
+    { "item": "Meta developer account and an Instagram professional account", "required_for": "dev", "owner": "you", "evidence": "sourced", "source_ids": ["m1"] },
+    { "item": "Business portfolio with completed Business Verification (legal entity docs)", "required_for": "production", "owner": "you", "evidence": "sourced", "source_ids": ["m1", "m3"] },
+    { "item": "App icon 512–1024 px with no Meta trademarks", "required_for": "production", "owner": "you", "evidence": "sourced", "source_ids": ["m4", "m6"] },
+    { "item": "Public privacy policy URL and a data deletion URL or callback", "required_for": "production", "owner": "you", "evidence": "sourced", "source_ids": ["m5", "m6"] }
+  ],
+  "phases": [
+    {
+      "name": "Register",
+      "steps": [
+        { "title": "Create a Meta app and add the Instagram product", "detail": "Choose API setup with Instagram Login or with Facebook Login. Don't put Facebook, FB, Instagram or WhatsApp in your app name.", "owner": "you", "est_time": "20 min", "evidence": "sourced", "source_ids": ["m1", "m5"] }
+      ]
+    },
+    {
+      "name": "Test",
+      "steps": [
+        { "title": "Test with Standard Access", "detail": "Works for users who have a role on your app or on the business portfolio that claimed it.", "owner": "you", "est_time": "30 min", "evidence": "sourced", "source_ids": ["m1"] },
+        { "title": "Make at least one successful API call per permission", "detail": "Required before you can request Advanced Access for that permission.", "owner": "you", "est_time": "30 min", "evidence": "sourced", "source_ids": ["m2"] }
+      ]
+    },
+    {
+      "name": "Go to production",
+      "steps": [
+        { "title": "Complete Business Verification early", "detail": "Start it the day you start building; it gates Advanced Access.", "owner": "you", "est_time": "Days to 2+ weeks", "evidence": "community", "source_ids": ["m3", "m8"] },
+        { "title": "Prepare the App Review submission", "detail": "Six components: verification, app settings, allowed usage, data handling, data protection, reviewer instructions. Includes a screencast per permission and test credentials.", "owner": "you", "est_time": "4–8 hours of prep", "evidence": "sourced", "source_ids": ["m3", "m4"] },
+        { "title": "Meta reviews", "detail": "Permissions can be approved individually; some may be rejected while others pass.", "owner": "provider", "est_time": "~1–3 weeks per round", "evidence": "community", "source_ids": ["m7", "m3"] }
+      ]
+    }
+  ],
+  "nuances": [
+    { "title": "Partial approval is normal", "detail": "Meta can approve some permissions and reject others in the same submission.", "impact": "medium", "evidence": "sourced", "source_ids": ["m3"] },
+    { "title": "Over-asking gets you rejected", "detail": "Request only permissions your current product uses and can demonstrate.", "impact": "high", "evidence": "community", "source_ids": ["m7"] },
+    { "title": "Possible fourth gate: Access Verification", "detail": "A third-party guide describes Access Verification / Tech Provider as a separate review gating ~30 permissions. Not confirmed in Meta docs checked today.", "impact": "medium", "evidence": "uncertain", "source_ids": ["m9"] }
+  ],
+  "blockers": [
+    { "symptom": "Can't submit App Review", "cause": "Business Verification still in review", "fix": "Make sure business documents, website domain and business email match Business Manager exactly; don't edit while in review.", "escalation": "Meta Business Support (direct support case)", "evidence": "community", "source_ids": ["m8"] },
+    { "symptom": "'Screencast does not demonstrate the permission'", "cause": "Video doesn't show the full user flow where the permission is used", "fix": "Record the end-to-end UI flow for each permission with clear captions.", "escalation": "Resubmit", "evidence": "community", "source_ids": ["m7", "m4"] },
+    { "symptom": "Rejected for privacy policy", "cause": "URL unreachable, generic, or missing data deletion", "fix": "Publish an app-specific policy that names the Instagram data you use and how users delete it.", "escalation": "Resubmit", "evidence": "sourced", "source_ids": ["m4", "m5"] }
+  ],
+  "agent_handoff": {
+    "agent_can": ["Pick the login type and minimum permissions from your feature list", "Draft per-permission use-case text, reviewer test instructions and a screencast shot list", "Draft an app-specific privacy policy and data deletion page"],
+    "you_must": ["Own an Instagram professional account and Meta Business portfolio", "Upload legal business documents for Business Verification", "Record screencasts and submit App Review"]
+  },
+  "evidence_log": {
+    "tested": [],
+    "corrected": [],
+    "unverified": ["Review durations come from third-party and community sources; Meta's own docs checked today don't publish a number.", "Access Verification / Tech Provider requirements not confirmed in Meta docs."]
+  },
+  "sources": [
+    { "id": "m1", "title": "Instagram Platform overview", "url": "https://developers.facebook.com/docs/instagram-platform/overview", "type": "official", "accessed": "2026-10-20" },
+    { "id": "m2", "title": "App Review for Instagram API", "url": "https://developers.secure.facebook.com/docs/instagram-platform/app-review", "type": "official", "accessed": "2026-10-20" },
+    { "id": "m3", "title": "App Review — Content", "url": "https://developers.facebook.com/documentation/resp-plat-initiatives/appreview/content", "type": "official", "accessed": "2026-10-20" },
+    { "id": "m4", "title": "App Review — Tutorial", "url": "https://developers.facebook.com/docs/resp-plat-initiatives/appreview/tutorial", "type": "official", "accessed": "2026-10-20" },
+    { "id": "m5", "title": "App Dashboard basic settings", "url": "https://developers.facebook.com/docs/development/create-an-app/app-dashboard/basic-settings", "type": "official", "accessed": "2026-10-20" },
+    { "id": "m6", "title": "Pages API — create an app", "url": "https://developers.facebook.com/docs/pages-api/create-an-app", "type": "official", "accessed": "2026-10-20" },
+    { "id": "m7", "title": "Meta App Review timelines stretched to 20 days (bundle.social)", "url": "https://bundle.social/blog/meta-app-review-20-days", "type": "third_party", "accessed": "2026-10-20" },
+    { "id": "m8", "title": "Business Verification 'In Review' 10+ days — Meta community", "url": "https://communityforums.atmeta.com/discussions/Questions_Discussions/business-verification-in-review-10-days-%E2%80%94-blocking-app-review-submission/1372323", "type": "community", "accessed": "2026-10-20" },
+    { "id": "m9", "title": "Meta Graph App (Unified.to skill)", "url": "https://docs.unified.to/skills/meta-graph-app/SKILL.md", "type": "third_party", "accessed": "2026-10-20" }
+  ]
+}
