@@ -17,5 +17,6 @@ export type AgentEvent =
   | { type: "stage"; stage: Stage; detail?: string }
   | { type: "search"; query: string }
   | { type: "page"; url: string; ok: boolean }
+  | { type: "wait"; seconds: number; attempt: number; of: number }
   | { type: "done"; guide: Guide; uncertain: string[]; downgraded: number }
   | { type: "error"; message: string };

@@ -110,7 +110,7 @@ export async function* runAgent(input: string): AsyncGenerator<AgentEvent> {
     rawText: textOf(final.content),
     input,
     today,
-    repair: async (prompt) => {
+    repair: async function* (prompt) {
       const fix = await client.beta.messages
         .stream({
           model: MODEL,

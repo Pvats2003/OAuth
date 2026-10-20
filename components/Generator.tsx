@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { STAGES, type AgentEvent, type Stage } from "@/lib/stages";
 
 type ServerEvent = AgentEvent | { type: "saved"; slug: string };
@@ -19,6 +19,7 @@ export default function Generator({ initialApp, regenerate }: { initialApp: stri
   const [pages, setPages] = useState<{ url: string; ok: boolean }[]>([]);
   const [error, setError] = useState<string>("");
   const [doneSlug, setDoneSlug] = useState<string>("");
+  const [waiting, setWaiting] = useState<string>("");
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,6 +46,7 @@ export default function Generator({ initialApp, regenerate }: { initialApp: stri
     setPages([]);
     setError("");
     setDoneSlug("");
+    setWaiting("");
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -68,6 +70,8 @@ export default function Generator({ initialApp, regenerate }: { initialApp: stri
           const line = chunk.split("\n").find((l) => l.startsWith("data: "));
           if (!line) continue;
           const event = JSON.parse(line.slice(6)) as ServerEvent;
+          // Any progress after a rate-limit pause means the wait is over.
+          setWaiting(event.type === "wait" ? `Waiting for rate limit… retrying in ${event.seconds}s (attempt ${event.attempt} of ${event.of})` : "");
           if (event.type === "stage") {
             setReached((r) => (r.includes(event.stage) ? r : [...r, event.stage]));
             setDetail(event.detail ?? "");
@@ -86,6 +90,7 @@ export default function Generator({ initialApp, regenerate }: { initialApp: stri
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
+      setWaiting("");
       setRunning(false);
     }
   }
@@ -141,7 +146,8 @@ export default function Generator({ initialApp, regenerate }: { initialApp: stri
               const isCurrent = running && s.id === current;
               const isDone = reached.includes(s.id) && !isCurrent;
               return (
-                <li key={s.id} className="flex items-center gap-3 text-sm">
+                <Fragment key={s.id}>
+                <li className="flex items-center gap-3 text-sm">
                   <span className="flex h-5 w-5 items-center justify-center">
                     {isCurrent ? (
                       <span className="h-3 w-3 animate-pulse rounded-full bg-sky-500" />
@@ -153,6 +159,13 @@ export default function Generator({ initialApp, regenerate }: { initialApp: stri
                   </span>
                   <span className={isCurrent ? "font-medium" : isDone ? "" : "text-zinc-400"}>{s.label}</span>
                 </li>
+                {isCurrent && waiting && (
+                  <li role="status" className="ml-8 flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
+                    <span aria-hidden>⏳</span>
+                    {waiting}
+                  </li>
+                )}
+                </Fragment>
               );
             })}
           </ol>

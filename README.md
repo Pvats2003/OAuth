@@ -22,7 +22,7 @@ npm run dev                  # http://localhost:3000
 - Two research providers, picked with `RESEARCH_PROVIDER`:
   - `anthropic` (default): Claude with Anthropic's web search and web fetch. Needs `ANTHROPIC_API_KEY`.
   - `gemini`: Gemini with Google Search grounding, plus Tavily to read full pages. Needs `GEMINI_API_KEY`
-    and `TAVILY_API_KEY`. Model is `GEMINI_MODEL` (default `gemini-3.8-flash`).
+    and `TAVILY_API_KEY`. Model is `GEMINI_MODEL` (default `gemini-3.7-flash`, a Flash model with free-tier quota).
   Both produce the same guide schema and go through the same validation and self-check.
 - The Anthropic agent uses Claude Sonnet 5.5 (`claude-sonnet-5-5`) by default. Set `RESEARCH_MODEL=claude-opus-5-5`
   to use Claude Opus 5.5 instead: deeper research, but about twice the cost and slower.
@@ -83,6 +83,10 @@ Claude (Sonnet 5.5 by default, Opus 5.5 via `RESEARCH_MODEL`) with web search an
 With `RESEARCH_PROVIDER=gemini` the same steps run in three calls: Gemini searches with Google Search grounding and
 lists the pages worth reading → Tavily reads up to 9 of them in full → Gemini writes the guide from those pages only.
 Sources that weren't actually read are removed, so any claim citing them drops to "uncertain".
+That is 2 Gemini calls per guide (3 if the JSON needs a repair); search results are reused for 30 minutes, so
+regenerating the same app costs 1. On a rate limit (429) the agent waits Gemini's suggested delay (or 5s, 15s, 30s)
+and retries up to 3 times, showing "Waiting for rate limit…"; it gives up on daily quotas rather than waiting hours.
+The server log names the exact quota, its limit and the retry delay.
 
 ## Evidence: what I tested, corrected and couldn't verify
 
@@ -97,6 +101,8 @@ Sources that weren't actually read are removed, so any claim citing them drops t
 - Guides go stale as consoles and policies change. A scheduled re-check is the next step.
 - Live guides depend on public docs; for poorly documented providers expect more "uncertain" labels.
 - No provider approval was completed for this project.
+- Gemini's free tier is small (reported around 5 requests a minute and 20 a day per model), so expect only a handful
+  of Gemini guides a day without billing. Google no longer publishes the free-tier table; AI Studio shows your project's limits.
 - Rate limiting is per-server and in memory; it prevents accidental repeat runs, not abuse.
 - Five seed guides, not 100. The same agent builds the rest.
 

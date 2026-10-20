@@ -57,7 +57,8 @@ export async function* finishGuide(opts: {
   rawText: string;
   input: string;
   today: string;
-  repair: (prompt: string) => Promise<string>;
+  /** Asks the model to fix the JSON. A generator, so it can report progress (e.g. rate-limit waits). */
+  repair: (prompt: string) => AsyncGenerator<AgentEvent, string>;
   prepare?: (guide: Guide) => Guide;
 }): AsyncGenerator<AgentEvent> {
   yield { type: "stage", stage: "check", detail: "Validating against the schema" };
@@ -65,7 +66,7 @@ export async function* finishGuide(opts: {
 
   if (!parsed.ok) {
     yield { type: "stage", stage: "check", detail: "Fixing schema errors" };
-    parsed = tryParse(await opts.repair(repairPrompt(parsed.error, opts.rawText)));
+    parsed = tryParse(yield* opts.repair(repairPrompt(parsed.error, opts.rawText)));
     if (!parsed.ok) {
       yield { type: "error", message: `The guide didn't match the schema after one fix attempt:\n${parsed.error}` };
       return;
