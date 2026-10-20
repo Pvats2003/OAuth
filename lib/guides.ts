@@ -76,8 +76,22 @@ export async function isSeed(slug: string): Promise<boolean> {
   return (await seedGuides()).some((g) => g.slug === slug);
 }
 
+/** True when generated guides can't be saved: on Vercel (read-only filesystem) without a Blob token. */
+export function storageMissing(): boolean {
+  return Boolean(process.env.VERCEL) && !blobEnabled();
+}
+
+export class StorageNotConfiguredError extends Error {
+  constructor() {
+    super("Blob storage not configured");
+    this.name = "StorageNotConfiguredError";
+  }
+}
+
 export async function saveGuide(guide: Guide): Promise<void> {
   const body = JSON.stringify(guide, null, 2);
+  // Never fall back to data/generated on Vercel: its filesystem is read-only.
+  if (storageMissing()) throw new StorageNotConfiguredError();
   if (blobEnabled()) {
     const access = blobAccess();
     await put(`${BLOB_PREFIX}${guide.slug}.json`, body, {

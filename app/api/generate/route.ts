@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { ProviderError } from "@/lib/finalize";
 import { missingKeys, researchProvider, runResearch } from "@/lib/research";
 import type { AgentEvent } from "@/lib/stages";
-import { isSeed, saveGuide } from "@/lib/guides";
+import { isSeed, saveGuide, storageMissing, StorageNotConfiguredError } from "@/lib/guides";
 import { rateLimit } from "@/lib/rateLimit";
 
 export const maxDuration = 300;
@@ -17,10 +17,19 @@ function userMessage(err: unknown): string {
   return "Something went wrong while writing the guide. Try again.";
 }
 
+const STORAGE_MESSAGE =
+  "Saving guides isn't set up on this site yet (Blob storage not configured). The site owner needs to connect a Vercel Blob store.";
+
 export async function POST(req: Request) {
   const { input } = (await req.json().catch(() => ({}))) as { input?: string };
   const app = (input ?? "").trim().slice(0, 200);
   if (!app) return Response.json({ error: "Enter an app name or website." }, { status: 400 });
+  // Check storage before spending any research calls: without it the guide couldn't be saved.
+  if (storageMissing()) {
+    console.error("Blob storage not configured: BLOB_READ_WRITE_TOKEN is missing on Vercel, so generated guides can't be saved.");
+    return Response.json({ error: STORAGE_MESSAGE }, { status: 503 });
+  }
+
   const missing = missingKeys(researchProvider());
   if (missing.length) {
     return Response.json({ error: `${missing.join(" and ")} not set on the server.` }, { status: 503 });
@@ -48,6 +57,11 @@ export async function POST(req: Request) {
             try {
               await saveGuide(guide);
             } catch (err) {
+              if (err instanceof StorageNotConfiguredError) {
+                console.error("Blob storage not configured: BLOB_READ_WRITE_TOKEN is missing on Vercel.");
+                send({ type: "error", message: STORAGE_MESSAGE });
+                return;
+              }
               // Storage, not research: log it as such so the cause is clear in Vercel Logs.
               console.error(
                 `saving guide "${guide.slug}" failed (${process.env.BLOB_READ_WRITE_TOKEN ? `Vercel Blob, access=${process.env.BLOB_ACCESS || "public"}` : "local disk"}):`,
