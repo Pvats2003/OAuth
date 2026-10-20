@@ -17,9 +17,9 @@ const REASONING = (process.env.GROQ_REASONING_EFFORT || "low") as "low" | "mediu
 const MAX_SEARCHES = 6;
 const MAX_PAGES = 8;
 // Groq's free tier allows 8,000 tokens a minute, and one request counts in full. Keep the
-// prompt small (compact system prompt + about 2,500 tokens of page passages, ~3,800 in all) and
+// prompt small (compact system prompt + about 2,250 tokens of page passages, ~3,800 in all) and
 // leave room for a 4,000-token answer.
-const PAGE_CHARS_TOTAL = Number(process.env.GROQ_PAGE_CHARS || 10000);
+const PAGE_CHARS_TOTAL = Number(process.env.GROQ_PAGE_CHARS || 9000);
 const MAX_COMPLETION_TOKENS = Number(process.env.GROQ_MAX_TOKENS || 4000);
 
 type SearchHit = { url: string; title: string; score: number };
@@ -150,7 +150,16 @@ function searchQueries(app: string): string[] {
 
 const norm = (u: string) => u.replace(/#.*$/, "").replace(/\/+$/, "").toLowerCase();
 
-/** Best pages first: the provider's own site (its name in the host), then Tavily's relevance score. */
+// Pages about the OAuth path itself rank above other pages from the same site.
+const OAUTH_TOPIC = /oauth|authori[sz]|\bauth\b|\bscopes?\b|app[\s_-]?review|publish/i;
+// Help-center and gallery pages about templates are never about OAuth approval.
+const TEMPLATE_PAGE = (url: string, title: string) =>
+  /template/i.test(`${url} ${title}`) && /help|support|gallery|\/templates?(\/|$)/i.test(url);
+
+/**
+ * Best pages first: the provider's own pages about OAuth, then its other pages, then third-party
+ * pages about OAuth, then the rest; Tavily's relevance score breaks ties. Template pages are dropped.
+ */
 export function pickPages(app: string, hits: SearchHit[], max = MAX_PAGES): string[] {
   const token = slugify(app).split("-")[0];
   const own = (url: string) => {
@@ -160,9 +169,11 @@ export function pickPages(app: string, hits: SearchHit[], max = MAX_PAGES): stri
       return 0;
     }
   };
+  const rank = (h: SearchHit) => own(h.url) * 2 + (OAUTH_TOPIC.test(`${h.url} ${h.title}`) ? 1 : 0);
   const seen = new Set<string>();
   return [...hits]
-    .sort((a, b) => own(b.url) - own(a.url) || b.score - a.score)
+    .filter((h) => !TEMPLATE_PAGE(h.url, h.title))
+    .sort((a, b) => rank(b) - rank(a) || b.score - a.score)
     .filter((h) => !seen.has(norm(h.url)) && seen.add(norm(h.url)))
     .slice(0, max)
     .map((h) => h.url);

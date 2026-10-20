@@ -94,6 +94,16 @@ Sources
 - Every entry in "sources" must use one of those URLs exactly. Mark the provider's own pages "official".
 
 ${LABELS_OWNERS_TIERS}
+Choosing the tier (decide this before writing the rest)
+- Ask one question: can a user outside your own workspace or team authorize the app before any review or approval is done?
+- If yes, the tier is self_serve or self_serve_with_review, even when the provider also offers a reviewed directory,
+  marketplace or gallery listing. An optional listing review means self_serve_with_review, and it does not count
+  toward time_to_production.
+- Use review_required or partner_gated only when a review or approval blocks other users from authorizing the app
+  (or from getting the scopes it needs). Say which page states that in key_decision or a nuance.
+- Ignore reviews and approvals for unrelated programs (template galleries, partner or reseller programs, security or
+  bug-bounty programs, certifications) unless the page ties them to OAuth or API access.
+
 Output
 - Reply with only one JSON object matching the schema below. No prose, no markdown fences.
 - Be concrete: console paths, numbers, limits, short plain sentences. Use the phase names Register, Configure, Test, Go to production where they apply.

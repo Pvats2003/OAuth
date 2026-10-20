@@ -87,7 +87,7 @@ export async function isSeed(slug: string): Promise<boolean> {
   return (await seedGuides()).some((g) => g.slug === slug);
 }
 
-/** True when generated guides can't be saved: on Vercel (read-only filesystem) with Blob not configured. */
+/** Where generated guides are saved, for log lines. */
 export function storageLabel(): string {
   if (!blobEnabled()) return "local disk";
   const via = process.env.BLOB_READ_WRITE_TOKEN
@@ -98,6 +98,7 @@ export function storageLabel(): string {
   return `Vercel Blob via ${via}, access=${blobAccess()}`;
 }
 
+/** True when generated guides can't be saved: on Vercel (read-only filesystem) with Blob not configured. */
 export function storageMissing(): boolean {
   return onVercel() && !blobEnabled();
 }
