@@ -71,6 +71,15 @@ export function parseGroqError(err: unknown): {
   };
 }
 
+/** The reply Groq refused in JSON mode, if this error is a json_validate_failed. */
+export function failedGeneration(err: unknown): string | null {
+  if (!(err instanceof Error) || (err as { status?: unknown }).status !== 400) return null;
+  type Body = { code?: string; failed_generation?: string };
+  const raw = (err as { error?: Body & { error?: Body } }).error;
+  const body = raw?.error ?? raw;
+  return body?.code === "json_validate_failed" && typeof body.failed_generation === "string" ? body.failed_generation : null;
+}
+
 /** Logs a Groq API error in full and turns it into the error the agent acts on. */
 export function groqFailure(err: unknown): ProviderError {
   const info = parseGroqError(err);
@@ -131,6 +140,13 @@ function realDeps(): GroqDeps {
         });
         return res.choices[0]?.message?.content ?? "";
       } catch (err) {
+        // In JSON mode Groq rejects replies that aren't valid JSON (e.g. a note after the object) with a 400
+        // "json_validate_failed" that still carries the reply; extract the JSON from it instead of failing.
+        const text = failedGeneration(err);
+        if (text) {
+          console.error(`Groq JSON mode rejected the reply (json_validate_failed, model ${MODEL}); extracting the JSON from it`);
+          return text;
+        }
         throw groqFailure(err);
       }
     },

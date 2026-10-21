@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { ProviderError } from "@/lib/finalize";
+import { GUIDE_FAILED, ProviderError } from "@/lib/finalize";
 import { missingKeys, researchProvider, runResearch } from "@/lib/research";
 import type { AgentEvent } from "@/lib/stages";
 import { isSeed, saveGuide, storageLabel, storageMissing, StorageNotConfiguredError } from "@/lib/guides";
@@ -14,7 +14,7 @@ function userMessage(err: unknown): string {
   if (err instanceof Anthropic.APIError || err instanceof ProviderError) {
     return "The research agent is unavailable right now (API credit or rate limit). Try again shortly.";
   }
-  return "Something went wrong while writing the guide. Try again.";
+  return GUIDE_FAILED;
 }
 
 const STORAGE_MESSAGE =

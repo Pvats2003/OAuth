@@ -27,11 +27,42 @@ export class ProviderError extends Error {
   }
 }
 
-function extractJson(text: string): unknown {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start === -1 || end <= start) throw new Error("The model did not return JSON.");
-  return JSON.parse(text.slice(start, end + 1));
+/** Index just past the "}" that closes the object starting at `start`, or -1. Braces inside strings don't count. */
+function balancedEnd(text: string, start: number): number {
+  let depth = 0;
+  let inString = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (c === "\\") i++; // skip the escaped character
+      else if (c === '"') inString = false;
+    } else if (c === '"') inString = true;
+    else if (c === "{") depth++;
+    else if (c === "}" && --depth === 0) return i + 1;
+  }
+  return -1;
+}
+
+/**
+ * The first complete JSON object in a model reply. Anything before or after it (prose, notes,
+ * ``` fences, a second object) is ignored. If a "{" in leading prose isn't real JSON, the next one is tried.
+ */
+export function extractJson(text: string): unknown {
+  const cleaned = text.replace(/^\s*```[a-zA-Z]*\s*$/gm, "");
+  let lastError: unknown = new Error("The model did not return JSON.");
+  for (let start = cleaned.indexOf("{"); start !== -1; start = cleaned.indexOf("{", start + 1)) {
+    const end = balancedEnd(cleaned, start);
+    if (end === -1) {
+      lastError = new Error("The model's JSON was cut off before it ended.");
+      break; // no later "{" can close either
+    }
+    try {
+      return JSON.parse(cleaned.slice(start, end));
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError;
 }
 
 function formatIssues(err: { issues: { path: PropertyKey[]; message: string }[] }): string {
@@ -51,6 +82,9 @@ function tryParse(text: string): { ok: true; guide: Guide } | { ok: false; error
   const result = GuideSchema.safeParse(json);
   return result.success ? { ok: true, guide: result.data } : { ok: false, error: formatIssues(result.error) };
 }
+
+/** Shown when a run can't produce a valid guide; the details go to the server log. */
+export const GUIDE_FAILED = "The agent couldn't finish this guide. Try Regenerate.";
 
 export function repairPrompt(error: string, rawText: string): string {
   return `This guide JSON failed validation.\n\nErrors:\n${error}\n\nJSON:\n${rawText}\n\nReturn only the corrected JSON object. Keep all content; change only what's needed to pass validation.`;
@@ -88,7 +122,7 @@ export async function* finishGuide(opts: {
       parsed = repaired;
     } else if (!parsed.ok) {
       console.error(`guide validation failed again after repair for "${opts.input}":\n${repaired.error}`);
-      yield { type: "error", message: `The guide didn't match the schema after one fix attempt:\n${repaired.error}` };
+      yield { type: "error", message: GUIDE_FAILED };
       return;
     } else {
       // The draft was valid and only missed a content rule; keep it rather than a broken repair.

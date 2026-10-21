@@ -32,7 +32,7 @@ npm run dev                  # http://localhost:3000
 - The Anthropic agent uses Claude Sonnet 5.5 (`claude-sonnet-5-5`) by default. Set `RESEARCH_MODEL=claude-opus-5-5`
   to use Claude Opus 5.5 instead: deeper research, but about twice the cost and slower.
 - Seed guides live in `data/guides/*.json`. Edit them by hand; the app validates them against `lib/schema.ts` on load.
-- Checks: `npm run lint`, `npx tsc --noEmit`, `npm run build`.
+- Checks: `npm test` (parsing and pipeline tests), `npm run lint`, `npx tsc --noEmit`, `npm run build`.
 
 ### Deploy on Vercel
 
